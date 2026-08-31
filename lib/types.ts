@@ -2,10 +2,10 @@ export type Suit = "S" | "H" | "D" | "C";
 export type Card = string; // e.g. "AS", "TH", "2C" — rank + suit
 
 export interface Player {
-  id: string; // random id generated on join, stored in browser
-  name: string;
-  seat: number; // 0-3
-  team: 0 | 1; // seats 0&2 = team 0, seats 1&3 = team 1
+  id: string; // the Supabase auth user id
+  name: string; // the player's chosen username
+  seat: number; // 0..maxPlayers-1
+  team: 0 | 1; // even seats = team 0, odd seats = team 1
   hand: Card[];
   connected: boolean;
 }
@@ -17,10 +17,16 @@ export interface PileEntry {
   seat: number;
 }
 
+// Player counts we support. Must stay even (so seats split into two equal
+// teams) and within the DB check constraint on rooms.max_players (4-8).
+export const PLAYER_COUNT_OPTIONS = [4, 6, 8] as const;
+export type PlayerCount = (typeof PLAYER_COUNT_OPTIONS)[number];
+
 export interface GameState {
   code: string;
   status: GameStatus;
-  players: Player[]; // up to 4, ordered by seat
+  maxPlayers: PlayerCount;
+  players: Player[]; // up to maxPlayers, ordered by seat
   turnSeat: number; // whose turn it is
   leaderSeat: number; // who led the current trick
   ledSuit: Suit | null;

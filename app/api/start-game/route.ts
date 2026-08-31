@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getAuthedUser } from "@/lib/authHelpers";
 import { GameState } from "@/lib/types";
 import { dealAndStart } from "@/lib/gameLogic";
 
 export async function POST(req: Request) {
-  const { code, playerId } = await req.json();
-  if (!code || !playerId) return NextResponse.json({ error: "Missing code or playerId." }, { status: 400 });
+  const user = await getAuthedUser(req);
+  if (!user) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+
+  const { code } = await req.json();
+  if (!code) return NextResponse.json({ error: "Missing room code." }, { status: 400 });
   const roomCode = String(code).trim().toUpperCase();
 
   const { data, error } = await supabaseAdmin.from("rooms").select("state").eq("code", roomCode).single();
@@ -13,11 +17,11 @@ export async function POST(req: Request) {
 
   let state = data.state as GameState;
 
-  if (state.players[0]?.id !== playerId) {
+  if (state.players[0]?.id !== user.id) {
     return NextResponse.json({ error: "Only the host can start the game." }, { status: 403 });
   }
-  if (state.players.length !== 4) {
-    return NextResponse.json({ error: "Need exactly 4 players to start." }, { status: 400 });
+  if (state.players.length !== state.maxPlayers) {
+    return NextResponse.json({ error: `Need exactly ${state.maxPlayers} players to start.` }, { status: 400 });
   }
   if (state.status !== "waiting") {
     return NextResponse.json({ error: "Game already started." }, { status: 400 });

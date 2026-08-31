@@ -23,12 +23,21 @@ function pushLog(state: GameState, msg: string) {
   state.log = [...state.log, msg].slice(-8);
 }
 
-/** Deals a fresh shuffled deck evenly to the current players and starts the game. */
+/**
+ * Deals a fresh shuffled deck to the current players and starts the game.
+ * Dealt round-robin, one card at a time, so hands are as even as possible —
+ * a standard 52-card deck only splits perfectly evenly across 4 players;
+ * with 6 or 8 players some hands get one extra card, same as dealing by hand.
+ */
 export function dealAndStart(state: GameState): GameState {
   const deck = shuffle(freshDeck());
+  const hands: Card[][] = state.players.map(() => []);
+  deck.forEach((card, i) => {
+    hands[i % state.players.length].push(card);
+  });
   const players = state.players.map((p, i) => ({
     ...p,
-    hand: deck.slice(i * 13, i * 13 + 13).sort((a, b) => {
+    hand: hands[i].sort((a, b) => {
       const su = suitOf(a).localeCompare(suitOf(b));
       return su !== 0 ? su : rankValue(a) - rankValue(b);
     }),
@@ -55,10 +64,9 @@ function activeSeats(state: GameState): number[] {
 function nextSeat(state: GameState, fromSeat: number): number {
   const active = activeSeats(state);
   if (active.length === 0) return fromSeat;
-  const order = [0, 1, 2, 3];
-  const startIdx = order.indexOf(fromSeat);
-  for (let step = 1; step <= 4; step++) {
-    const candidate = order[(startIdx + step) % 4];
+  const total = state.players.length;
+  for (let step = 1; step <= total; step++) {
+    const candidate = (fromSeat + step) % total;
     if (active.includes(candidate)) return candidate;
   }
   return fromSeat;

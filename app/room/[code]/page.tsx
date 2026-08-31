@@ -1,48 +1,41 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useRoom } from "@/lib/useRoom";
+import { useAuth } from "@/lib/useAuth";
+import { authedFetch } from "@/lib/apiClient";
 import { CardFace, CardBack } from "@/lib/CardFace";
 import { Card, suitName } from "@/lib/types";
 
 export default function RoomPage() {
   const params = useParams();
+  const router = useRouter();
   const code = (params.code as string)?.toUpperCase();
   const { state, loading } = useRoom(code ?? null);
-  const [playerId, setPlayerId] = useState<string | null>(null);
+  const { loading: authLoading, userId, accessToken } = useAuth();
   const [error, setError] = useState("");
   const [starting, setStarting] = useState(false);
 
   useEffect(() => {
-    if (code) setPlayerId(localStorage.getItem(`thulla-player-${code}`));
-  }, [code]);
+    if (!authLoading && !userId) router.push("/login");
+  }, [authLoading, userId, router]);
 
   async function handleStart() {
     setStarting(true);
     setError("");
-    const res = await fetch("/api/start-game", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, playerId }),
-    });
-    const data = await res.json();
+    const data = await authedFetch("/api/start-game", accessToken, { code });
     setStarting(false);
     if (data.error) setError(data.error);
   }
 
   async function handlePlay(card: Card) {
     setError("");
-    const res = await fetch("/api/play-card", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, playerId, card }),
-    });
-    const data = await res.json();
+    const data = await authedFetch("/api/play-card", accessToken, { code, card });
     if (data.error) setError(data.error);
   }
 
-  if (loading || !state) {
+  if (loading || authLoading || !state) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100">
         <p className="text-slate-400">Loading room…</p>
@@ -50,13 +43,13 @@ export default function RoomPage() {
     );
   }
 
-  const me = state.players.find((p) => p.id === playerId);
+  const me = state.players.find((p) => p.id === userId);
 
   if (!me) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 px-4 text-center">
         <div>
-          <p className="mb-2">You&apos;re not recognized in this room on this device.</p>
+          <p className="mb-2">You&apos;re not in this room on this account.</p>
           <p className="text-slate-400 text-sm">Go back and join with room code {code}.</p>
         </div>
       </main>
@@ -64,6 +57,7 @@ export default function RoomPage() {
   }
 
   if (state.status === "waiting") {
+    const seats = Array.from({ length: state.maxPlayers }, (_, i) => i);
     return (
       <main className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 px-4">
         <div className="w-full max-w-sm bg-slate-900 rounded-2xl p-6 shadow-xl border border-slate-800 text-center">
@@ -72,7 +66,7 @@ export default function RoomPage() {
           <p className="text-slate-400 text-sm mb-4">Share this code with your friends, wherever they are.</p>
 
           <div className="space-y-2 mb-5">
-            {[0, 1, 2, 3].map((seat) => {
+            {seats.map((seat) => {
               const p = state.players.find((pl) => pl.seat === seat);
               return (
                 <div
@@ -94,11 +88,15 @@ export default function RoomPage() {
 
           {me.seat === 0 ? (
             <button
-              disabled={state.players.length !== 4 || starting}
+              disabled={state.players.length !== state.maxPlayers || starting}
               onClick={handleStart}
               className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg transition"
             >
-              {state.players.length !== 4 ? `Need ${4 - state.players.length} more player(s)` : starting ? "Starting…" : "Start game"}
+              {state.players.length !== state.maxPlayers
+                ? `Need ${state.maxPlayers - state.players.length} more player(s)`
+                : starting
+                ? "Starting…"
+                : "Start game"}
             </button>
           ) : (
             <p className="text-slate-400 text-sm">Waiting for the host to start the game…</p>
@@ -121,40 +119,57 @@ export default function RoomPage() {
   }
 
   // status === "playing"
-  const rel = (seat: number) => (seat - me.seat + 4) % 4; // 0=me,1=right,2=partner,3=left
-  const bySeat = (seat: number) => state.players.find((p) => p.seat === seat)!;
   const isMyTurn = state.turnSeat === me.seat;
+  // everyone but me, in seat order starting right after my seat, wrapping around
+  const others = Array.from({ length: state.maxPlayers - 1 }, (_, i) => {
+    const seat = (me.seat + 1 + i) % state.maxPlayers;
+    return state.players.find((p) => p.seat === seat);
+  }).filter((p): p is NonNullable<typeof p> => !!p);
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center px-3 py-4">
-      <div className="w-full max-w-2xl flex justify-between items-center mb-2 text-sm text-slate-400">
+      <div className="w-full max-w-3xl flex justify-between items-center mb-4 text-sm text-slate-400">
         <span>Room {code}</span>
         <span>
-          Team A: {state.players.filter((p) => p.team === 0).map((p) => p.name).join(" & ")} · Team B:{" "}
-          {state.players.filter((p) => p.team === 1).map((p) => p.name).join(" & ")}
+          Team A: {state.players.filter((p) => p.team === 0).map((p) => p.name).join(", ")} · Team B:{" "}
+          {state.players.filter((p) => p.team === 1).map((p) => p.name).join(", ")}
         </span>
       </div>
 
-      {/* Partner (top) */}
-      <PlayerBadge player={bySeat((me.seat + 2) % 4)} isTurn={state.turnSeat === (me.seat + 2) % 4} />
-
-      <div className="flex items-center justify-between w-full max-w-2xl my-4">
-        {/* Left opponent */}
-        <PlayerBadge player={bySeat((me.seat + 3) % 4)} isTurn={state.turnSeat === (me.seat + 3) % 4} vertical />
-
-        {/* Pile / center */}
-        <div className="flex-1 flex flex-col items-center justify-center min-h-[120px]">
-          <div className="flex gap-2 mb-2">
-            {state.pile.map((entry, i) => (
-              <CardFace key={i} card={entry.card} />
-            ))}
-            {state.pile.length === 0 && <p className="text-slate-600 text-sm">No cards played yet this trick</p>}
+      {/* Everyone else, wrapped in a row, color-coded by team */}
+      <div className="flex flex-wrap justify-center gap-3 mb-6 max-w-3xl">
+        {others.map((p) => (
+          <div
+            key={p.id}
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl border ${
+              state.turnSeat === p.seat
+                ? "bg-emerald-900/50 border-emerald-500"
+                : p.team === 0
+                ? "bg-slate-900 border-emerald-800"
+                : "bg-slate-900 border-sky-800"
+            }`}
+          >
+            <span className="text-sm font-medium">{p.name}</span>
+            <span className={`text-[10px] ${p.team === 0 ? "text-emerald-400" : "text-sky-400"}`}>
+              Team {p.team === 0 ? "A" : "B"}
+            </span>
+            <div className="flex gap-0.5 items-center">
+              <CardBack small />
+              <span className="text-xs text-slate-400">×{p.hand.length}</span>
+            </div>
           </div>
-          {state.ledSuit && <p className="text-xs text-slate-500">Led suit: {suitName(state.ledSuit)}</p>}
-        </div>
+        ))}
+      </div>
 
-        {/* Right opponent */}
-        <PlayerBadge player={bySeat((me.seat + 1) % 4)} isTurn={state.turnSeat === (me.seat + 1) % 4} vertical />
+      {/* Pile / center */}
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[120px] w-full">
+        <div className="flex flex-wrap gap-2 mb-2 justify-center">
+          {state.pile.map((entry, i) => (
+            <CardFace key={i} card={entry.card} />
+          ))}
+          {state.pile.length === 0 && <p className="text-slate-600 text-sm">No cards played yet this trick</p>}
+        </div>
+        {state.ledSuit && <p className="text-xs text-slate-500">Led suit: {suitName(state.ledSuit)}</p>}
       </div>
 
       {/* Log */}
@@ -165,7 +180,7 @@ export default function RoomPage() {
       {error && <p className="text-red-400 text-sm mb-2">{error}</p>}
 
       <p className={`text-sm font-medium mb-2 ${isMyTurn ? "text-emerald-400" : "text-slate-500"}`}>
-        {isMyTurn ? "Your turn — pick a card" : `Waiting for ${bySeat(state.turnSeat).name}…`}
+        {isMyTurn ? "Your turn — pick a card" : `Waiting for ${state.players.find((p) => p.seat === state.turnSeat)?.name}…`}
       </p>
 
       {/* My hand */}
@@ -182,29 +197,5 @@ export default function RoomPage() {
         ))}
       </div>
     </main>
-  );
-}
-
-function PlayerBadge({
-  player,
-  isTurn,
-  vertical,
-}: {
-  player: { name: string; hand: string[]; team: 0 | 1 };
-  isTurn: boolean;
-  vertical?: boolean;
-}) {
-  return (
-    <div
-      className={`flex ${vertical ? "flex-col" : "flex-col"} items-center gap-1 px-3 py-2 rounded-xl ${
-        isTurn ? "bg-emerald-900/50 ring-1 ring-emerald-500" : "bg-slate-900"
-      }`}
-    >
-      <span className="text-sm font-medium">{player.name}</span>
-      <div className="flex gap-0.5">
-        <CardBack small />
-        <span className="text-xs text-slate-400 self-center">×{player.hand.length}</span>
-      </div>
-    </div>
   );
 }

@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getAuthedUser } from "@/lib/authHelpers";
 import { GameState, Player } from "@/lib/types";
 
-function randomId(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
 export async function POST(req: Request) {
-  const { code, name } = await req.json();
-  if (!code || !name) {
-    return NextResponse.json({ error: "Room code and name are required." }, { status: 400 });
-  }
+  const user = await getAuthedUser(req);
+  if (!user) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+
+  const { code } = await req.json();
+  if (!code) return NextResponse.json({ error: "Room code is required." }, { status: 400 });
   const roomCode = String(code).trim().toUpperCase();
 
   const { data, error } = await supabaseAdmin.from("rooms").select("state").eq("code", roomCode).single();
@@ -21,16 +19,19 @@ export async function POST(req: Request) {
   if (state.status !== "waiting") {
     return NextResponse.json({ error: "That game has already started." }, { status: 400 });
   }
-  if (state.players.length >= 4) {
-    return NextResponse.json({ error: "Room is full (4 players max)." }, { status: 400 });
+  if (state.players.some((p) => p.id === user.id)) {
+    // already in this room (e.g. refreshed the page) — just let them back in
+    return NextResponse.json({ code: roomCode });
+  }
+  if (state.players.length >= state.maxPlayers) {
+    return NextResponse.json({ error: `Room is full (${state.maxPlayers} players max).` }, { status: 400 });
   }
 
-  const playerId = randomId();
   const takenSeats = state.players.map((p) => p.seat);
-  const seat = [0, 1, 2, 3].find((s) => !takenSeats.includes(s))!;
+  const seat = Array.from({ length: state.maxPlayers }, (_, i) => i).find((s) => !takenSeats.includes(s))!;
   const team = (seat % 2) as 0 | 1;
 
-  const player: Player = { id: playerId, name: String(name).trim().slice(0, 20), seat, team, hand: [], connected: true };
+  const player: Player = { id: user.id, name: user.username, seat, team, hand: [], connected: true };
   state.players.push(player);
   state.log = [...state.log, `${player.name} joined.`].slice(-8);
   state.updatedAt = Date.now();
@@ -38,5 +39,5 @@ export async function POST(req: Request) {
   const { error: updateError } = await supabaseAdmin.from("rooms").update({ state }).eq("code", roomCode);
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
-  return NextResponse.json({ code: roomCode, playerId });
+  return NextResponse.json({ code: roomCode });
 }
