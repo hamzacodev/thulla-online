@@ -19,8 +19,9 @@ import { useVoice } from "@/lib/useVoice";
 import { useAvatars } from "@/lib/useAvatars";
 import { useRoomChat } from "@/lib/useRoomChat";
 import { authedFetch } from "@/lib/apiClient";
-import { legalMoves } from "@/lib/engine/rules";
+import { applyPlay, legalMoves } from "@/lib/engine/rules";
 import type { Card } from "@/lib/engine/cards";
+import type { GameState } from "@/lib/engine/types";
 import { invalidCardMessage, phrase, t } from "@/lib/copy";
 import { sfx, setSoundEnabled, primeAudio } from "@/lib/sound";
 
@@ -53,7 +54,20 @@ export default function RoomPage() {
     setToast({ id: ++toastId.current, text, tone });
   }, []);
 
-  const game = state?.game ?? null;
+  /**
+   * Our own move, shown before the server has confirmed it.
+   *
+   * The engine is deterministic and the server re-validates with the very
+   * same applyPlay, so the state we compute here is the state that comes
+   * back — there is nothing to be gained by making the player watch a
+   * network round trip before their card lands on the table. The server's
+   * word replaces it the moment it arrives, and `optimisticBase` is the
+   * server state it was built on, so we can tell when that has happened.
+   */
+  const [optimistic, setOptimistic] = useState<GameState | null>(null);
+  const optimisticBase = useRef<number | null>(null);
+
+  const game = optimistic ?? state?.game ?? null;
   const mySeat = state?.seats.find((s) => s.id === userId)?.seat ?? -1;
   const myName = state?.seats.find((s) => s.id === userId)?.name ?? "You";
 
@@ -86,6 +100,14 @@ export default function RoomPage() {
     if (inLobby) markChatRead(true);
   }, [inLobby, markChatRead]);
 
+  useEffect(() => {
+    if (optimisticBase.current === null) return;
+    if (!state?.game || state.game.updatedAt === optimisticBase.current) return;
+    // The authoritative state has arrived; ours has served its purpose.
+    optimisticBase.current = null;
+    setOptimistic(null);
+  }, [state]);
+
   // Same engine event, same one-per-trick guard, over realtime updates.
   const thulla = useThulla(game, mySeat);
 
@@ -94,13 +116,16 @@ export default function RoomPage() {
    * it. Every client does this; the server makes all but the first a no-op.
    */
   useEffect(() => {
-    if (!state || !game || game.phase !== "trickEnd" || !accessToken) return;
+    // Only the server's own state may drive this: a trick we've only
+    // predicted has no agreed trickEndsAt, and clearing it early would cut
+    // the result short on every other screen.
+    if (optimistic || !state || !game || game.phase !== "trickEnd" || !accessToken) return;
     const delay = Math.max(0, (state.trickEndsAt ?? 0) - Date.now()) + 120;
     const timer = setTimeout(() => {
       void authedFetch("/api/resolve-trick", accessToken, { code }).then(() => refresh());
     }, delay);
     return () => clearTimeout(timer);
-  }, [state, game, accessToken, code, refresh]);
+  }, [state, game, optimistic, accessToken, code, refresh]);
 
   // Narrate each trick result once.
   useEffect(() => {
@@ -172,8 +197,19 @@ export default function RoomPage() {
       return;
     }
     sfx.playCard();
+
+    // Land it now, ask afterwards.
+    const local = applyPlay(game, mySeat, card);
+    if (!local.error) {
+      optimisticBase.current = game.updatedAt;
+      setOptimistic(local.state);
+    }
+
     const data = await authedFetch("/api/play-card", accessToken, { code, card });
     if (data.error) {
+      // The server disagreed, so put its version back on screen.
+      optimisticBase.current = null;
+      setOptimistic(null);
       sfx.invalid();
       say(data.error, "error");
     }
