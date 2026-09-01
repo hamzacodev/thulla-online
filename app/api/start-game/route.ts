@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getAuthedUser } from "@/lib/authHelpers";
-import { createGame } from "@/lib/engine/rules";
+import { dealNewGame } from "@/lib/roomFlow";
 import { isRoomState, type RoomState } from "@/lib/roomTypes";
 
 export async function POST(req: Request) {
@@ -30,15 +30,8 @@ export async function POST(req: Request) {
     );
   }
 
-  // A rematch reuses the room: same seats, brand new deal and gameId.
-  state.game = createGame({
-    players: state.seats.map((s) => ({ id: s.id, name: s.name, kind: "remote" as const })),
-    config: { mode: "friends", mustLeadAceOfSpades: true },
-  });
-  state.status = "playing";
-  state.trickEndsAt = null;
-  state.resultsRecorded = false;
-  state.updatedAt = Date.now();
+  // Reuses the room: same seats, brand new deal and gameId.
+  dealNewGame(state);
 
   const { error: updateError } = await supabaseAdmin.from("rooms").update({ state }).eq("code", roomCode);
   if (updateError) return NextResponse.json({ error: "Couldn't start the game. Try again." }, { status: 500 });

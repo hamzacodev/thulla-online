@@ -38,6 +38,20 @@ interface GameOverProps {
   avatars?: Record<string, string>;
   onRematch?: () => void;
   onNewGame?: () => void;
+  /**
+   * Online rematch, which is a table vote rather than a button: the deal
+   * happens once everyone has asked for it. Absent in single player, where
+   * "rematch" just deals again immediately.
+   */
+  rematch?: {
+    /** Names of everyone who has said yes so far. */
+    readyNames: string[];
+    total: number;
+    mine: boolean;
+    isHost: boolean;
+    /** Host-only escape hatch when somebody has left the tab open elsewhere. */
+    onDealNow?: () => void;
+  };
 }
 
 export function GameOver({
@@ -49,6 +63,7 @@ export function GameOver({
   avatars,
   onRematch,
   onNewGame,
+  rematch,
 }: GameOverProps) {
   const table = standings(state);
   const winner = table[0];
@@ -138,8 +153,48 @@ export function GameOver({
           </div>
         )}
 
+        {/* Online: a vote, so nobody is stuck waiting on the host. */}
+        {rematch && onRematch && (
+          <div className="mt-6 rounded-xl border border-brass-400/25 bg-brass-400/[0.07] p-3 text-left">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-cream-100">🔄 Another one?</p>
+                <p className="tabular mt-0.5 text-xs text-cream-400">
+                  {rematch.readyNames.length === 0
+                    ? "Same players, fresh shuffle."
+                    : `${rematch.readyNames.length} of ${rematch.total} ready · ${rematch.readyNames.join(", ")}`}
+                </p>
+              </div>
+              <button
+                onClick={onRematch}
+                aria-pressed={rematch.mine}
+                className={`btn !min-h-10 shrink-0 !px-3 !text-xs ${
+                  rematch.mine ? "btn-secondary" : "btn-primary"
+                }`}
+              >
+                {rematch.mine ? "✓ Ready" : t("rematch", lang)}
+              </button>
+            </div>
+
+            {rematch.mine && rematch.readyNames.length < rematch.total && (
+              <p className="mt-2 text-xs text-cream-400/80" aria-live="polite">
+                Waiting for the others… it deals itself the moment everyone&apos;s in.
+              </p>
+            )}
+
+            {rematch.isHost && rematch.readyNames.length < rematch.total && (
+              <button
+                onClick={rematch.onDealNow}
+                className="btn btn-ghost mt-2 w-full !min-h-9 !text-xs"
+              >
+                Deal now without waiting
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-          {onRematch && (
+          {onRematch && !rematch && (
             <button className="btn btn-primary flex-1" onClick={onRematch}>
               🔄 {t("rematch", lang)}
             </button>

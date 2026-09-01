@@ -150,6 +150,17 @@ export default function RoomPage() {
     if (data.error) setError(data.error);
   }
 
+  /**
+   * A rematch is the table's decision, not the host's: this registers one
+   * vote and the server deals as soon as the last seat has voted. Tapping
+   * again takes the vote back.
+   */
+  async function handleRematch(now = false) {
+    const data = await authedFetch("/api/rematch", accessToken, { code, now });
+    if (data.error) say(data.error, "error");
+    else refresh();
+  }
+
   async function handlePlay(card: Card) {
     primeAudio();
     if (!game || mySeat < 0) return;
@@ -314,7 +325,16 @@ export default function RoomPage() {
           stats={statsLoading ? null : stats}
           statsAreLocal={isLocal}
           avatars={avatars}
-          onRematch={state.hostId === userId ? handleStart : undefined}
+          onRematch={() => void handleRematch()}
+          rematch={{
+            readyNames: (state.rematchReady ?? [])
+              .map((id) => state.seats.find((seat) => seat.id === id)?.name)
+              .filter((name): name is string => !!name),
+            total: state.seats.length,
+            mine: (state.rematchReady ?? []).includes(userId ?? ""),
+            isHost: state.hostId === userId,
+            onDealNow: () => void handleRematch(true),
+          }}
           onNewGame={() => router.push("/play?mode=friends")}
         />
       </main>

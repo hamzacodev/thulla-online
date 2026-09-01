@@ -1,7 +1,24 @@
 import { supabaseAdmin } from "./supabaseAdmin";
-import { resolveTrick, standings } from "./engine/rules";
+import { createGame, resolveTrick, standings } from "./engine/rules";
 import { writeResult, type HistoryPlayerInput } from "./recordResult";
 import { TRICK_LINGER_MS, type RoomState } from "./roomTypes";
+
+/**
+ * Deals a fresh game into an existing room: same seats, new shuffle, new
+ * gameId. Shared by the first deal and every rematch, so a rematch can't
+ * drift away from what starting a game does.
+ */
+export function dealNewGame(state: RoomState, now = Date.now()): void {
+  state.game = createGame({
+    players: state.seats.map((s) => ({ id: s.id, name: s.name, kind: "remote" as const })),
+    config: { mode: "friends", mustLeadAceOfSpades: true },
+  });
+  state.status = "playing";
+  state.trickEndsAt = null;
+  state.resultsRecorded = false;
+  state.rematchReady = [];
+  state.updatedAt = now;
+}
 
 /**
  * Clears a finished trick once its display window has elapsed. Idempotent,

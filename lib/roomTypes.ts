@@ -32,6 +32,13 @@ export interface RoomState {
   trickEndsAt: number | null;
   /** Set once results have been written, so they're never written twice. */
   resultsRecorded: boolean;
+  /**
+   * User ids who've asked for another game once this one finished. The deal
+   * happens on its own when everyone seated has asked, so a rematch doesn't
+   * depend on the host still having the tab open. Optional so rooms created
+   * before it existed still load.
+   */
+  rematchReady?: string[];
   createdAt: number;
   updatedAt: number;
 }
