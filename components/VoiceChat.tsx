@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Avatar } from "./Avatar";
-import type { VoiceControls, VoicePeer } from "@/lib/useVoice";
+import type { PeerState, VoiceControls, VoicePeer } from "@/lib/useVoice";
 
 /**
  * One peer's audio. Autoplay is allowed here because joining the call was a
@@ -23,32 +23,35 @@ function PeerAudio({ peer }: { peer: VoicePeer }) {
   return <audio ref={ref} autoPlay playsInline muted={peer.silenced} />;
 }
 
-/**
- * A person on the call. Colour is never the only signal — a muted mic and a
- * speaker we've silenced both carry their own icon.
- */
-function Chip({
-  name,
-  label,
+/** Plain words for what the connection is doing, never just a colour. */
+const STATE_LABEL: Record<PeerState, string> = {
+  connecting: "connecting…",
+  live: "",
+  retrying: "reconnecting…",
+  relaying: "connecting via relay…",
+  failed: "couldn't connect",
+};
+
+function ringFor(peer: VoicePeer): string {
+  if (peer.state === "failed") return "ring-chili-400";
+  if (peer.state !== "live") return "ring-brass-400";
+  if (peer.muted) return "ring-chili-400";
+  if (peer.speaking) return "ring-mint-300";
+  return "ring-white/15";
+}
+
+function PeerChip({
+  peer,
   avatarUrl,
-  speaking,
-  muted,
-  silenced,
-  pending,
-  title,
   onClick,
 }: {
-  name: string;
-  /** Defaults to the name — used to tack "(you)" on without changing initials. */
-  label?: string;
+  peer: VoicePeer;
   avatarUrl?: string | null;
-  speaking: boolean;
-  muted: boolean;
-  silenced?: boolean;
-  pending?: boolean;
-  title: string;
   onClick: () => void;
 }) {
+  const note = STATE_LABEL[peer.state];
+  const title = peer.silenced ? `Unmute ${peer.name} for yourself` : `Mute ${peer.name} for yourself`;
+
   return (
     <button
       type="button"
@@ -56,31 +59,18 @@ function Chip({
       title={title}
       aria-label={title}
       className={`flex items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 text-xs font-medium transition-colors ${
-        speaking
+        peer.speaking && peer.state === "live"
           ? "border-mint-300/70 bg-mint-400/20 text-cream-50"
+          : peer.state === "failed"
+          ? "border-chili-400/40 bg-chili-500/10 text-cream-200"
           : "border-white/10 bg-white/[0.05] text-cream-200"
       }`}
     >
-      <Avatar
-        src={avatarUrl}
-        name={name}
-        size={20}
-        ringClass={
-          muted
-            ? "ring-chili-400"
-            : speaking
-            ? "ring-mint-300"
-            : pending
-            ? "ring-brass-400"
-            : "ring-white/15"
-        }
-      />
-      <span className="max-w-[7rem] truncate">
-        {label ?? name}
-        {pending ? "…" : ""}
-      </span>
-      {muted && <span aria-hidden>🔇</span>}
-      {silenced && <span aria-hidden>🚫</span>}
+      <Avatar src={avatarUrl} name={peer.name} size={20} ringClass={ringFor(peer)} />
+      <span className="max-w-[7rem] truncate">{peer.name}</span>
+      {note && <span className="text-[0.65rem] text-cream-400">{note}</span>}
+      {peer.muted && peer.state === "live" && <span aria-hidden>🔇</span>}
+      {peer.silenced && <span aria-hidden>🚫</span>}
     </button>
   );
 }
@@ -106,13 +96,17 @@ export function VoiceChat({
 }: VoiceChatProps) {
   const live = voice.status === "live";
   const starting = voice.status === "starting";
+  /** Everyone on the call who isn't us — visible before we join. */
+  const others = voice.onCall.filter((p) => p.name !== selfName);
 
   // Kept mounted in both variants: the audio has to keep playing while the
   // controls are compact.
   const audio = voice.peers.map((p) => <PeerAudio key={p.id} peer={p} />);
 
   if (variant === "bar") {
-    const talking = voice.peers.filter((p) => p.speaking && !p.silenced).slice(0, 3);
+    const talkers = voice.peers.filter((p) => p.speaking && !p.silenced).slice(0, 3);
+    const struggling = live && voice.peers.some((p) => p.state === "failed");
+
     return (
       <div className="flex items-center gap-1">
         {audio}
@@ -123,41 +117,64 @@ export function VoiceChat({
             disabled={starting}
             title={starting ? "Joining voice chat…" : "Join voice chat"}
             aria-label={starting ? "Joining voice chat" : "Join voice chat"}
-            className="btn btn-secondary !min-h-9 !gap-1 !px-2.5 !text-xs"
+            className="btn btn-secondary relative !min-h-9 !gap-1 !px-2.5 !text-xs"
           >
             <span aria-hidden>{starting ? "⏳" : "🎙️"}</span>
+            {others.length > 0 && (
+              <span className="tabular absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-mint-400 px-1 text-[0.6rem] font-bold text-ink-950">
+                {others.length}
+              </span>
+            )}
           </button>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={voice.toggleMute}
-              aria-pressed={voice.muted}
-              title={voice.muted ? "Unmute your microphone" : "Mute your microphone"}
-              aria-label={voice.muted ? "Unmute your microphone" : "Mute your microphone"}
-              className={`btn !min-h-9 !gap-1 !px-2.5 !text-xs ${
-                voice.muted
-                  ? "btn-secondary !border-chili-400/50 !text-chili-400"
-                  : voice.speaking
-                  ? "btn-secondary !border-mint-300/70 !text-mint-300"
-                  : "btn-secondary"
-              }`}
-            >
-              <span aria-hidden>{voice.muted ? "🔇" : "🎙️"}</span>
-            </button>
+            {voice.pushToTalk ? (
+              <button
+                type="button"
+                onPointerDown={() => voice.setTalking(true)}
+                onPointerUp={() => voice.setTalking(false)}
+                onPointerLeave={() => voice.setTalking(false)}
+                onPointerCancel={() => voice.setTalking(false)}
+                title="Hold to talk"
+                aria-label="Hold to talk"
+                className={`btn !min-h-9 !gap-1 !px-2.5 !text-xs ${
+                  voice.talking ? "btn-primary" : "btn-secondary"
+                }`}
+              >
+                <span aria-hidden>{voice.talking ? "🎙️" : "🤫"}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={voice.toggleMute}
+                aria-pressed={voice.muted}
+                title={voice.muted ? "Unmute your microphone" : "Mute your microphone"}
+                aria-label={voice.muted ? "Unmute your microphone" : "Mute your microphone"}
+                className={`btn btn-secondary !min-h-9 !gap-1 !px-2.5 !text-xs ${
+                  voice.muted
+                    ? "!border-chili-400/50 !text-chili-400"
+                    : voice.speaking
+                    ? "!border-mint-300/70 !text-mint-300"
+                    : ""
+                }`}
+              >
+                <span aria-hidden>{voice.muted ? "🔇" : "🎙️"}</span>
+              </button>
+            )}
 
-            {talking.length > 0 && (
+            {talkers.length > 0 && (
               <span className="flex items-center gap-0.5" aria-live="polite">
-                {talking.map((p) => (
+                {talkers.map((p) => (
                   <span key={p.id} title={`${p.name} is talking`}>
-                    <Avatar
-                      src={avatars?.[p.id]}
-                      name={p.name}
-                      size={24}
-                      ringClass="ring-mint-300/80"
-                    />
+                    <Avatar src={avatars?.[p.id]} name={p.name} size={24} ringClass="ring-mint-300/80" />
                   </span>
                 ))}
+              </span>
+            )}
+
+            {struggling && (
+              <span className="text-[0.65rem] text-chili-400" title="A connection failed">
+                ⚠️
               </span>
             )}
 
@@ -176,7 +193,7 @@ export function VoiceChat({
     );
   }
 
-  const onCall = voice.peers.filter((p) => p.connected).length + 1;
+  const failed = voice.peers.filter((p) => p.state === "failed");
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-left">
@@ -187,7 +204,9 @@ export function VoiceChat({
           <p className="text-sm font-semibold text-cream-100">🎙️ Voice chat</p>
           <p className="mt-0.5 text-xs text-cream-400">
             {live
-              ? `${onCall} on the call · tap a name to mute them`
+              ? "Tap a name to mute them, just for you."
+              : others.length > 0
+              ? `${others.map((p) => p.name).join(", ")} ${others.length === 1 ? "is" : "are"} on the call.`
               : "Talk to the table while you play."}
           </p>
         </div>
@@ -203,39 +222,98 @@ export function VoiceChat({
             disabled={starting}
             className="btn btn-primary !min-h-9 shrink-0 !px-3 !text-xs"
           >
-            {starting ? "Joining…" : "Join"}
+            {starting ? "Joining…" : others.length > 0 ? `Join (${others.length})` : "Join"}
           </button>
         )}
       </div>
 
       {live && (
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
-          <Chip
-            name={selfName}
-            label={`${selfName} (you)`}
-            avatarUrl={selfAvatar}
-            speaking={voice.speaking}
-            muted={voice.muted}
-            title={voice.muted ? "Unmute your microphone" : "Mute your microphone"}
-            onClick={voice.toggleMute}
-          />
-          {voice.peers.map((p) => (
-            <Chip
-              key={p.id}
-              name={p.name}
-              avatarUrl={avatars?.[p.id]}
-              speaking={p.speaking && !p.silenced}
-              muted={p.muted}
-              silenced={p.silenced}
-              pending={!p.connected}
-              title={p.silenced ? `Unmute ${p.name} for yourself` : `Mute ${p.name} for yourself`}
-              onClick={() => voice.toggleSilence(p.id)}
-            />
-          ))}
-          {voice.peers.length === 0 && (
-            <p className="text-xs text-cream-400/70">Waiting for someone else to join the call…</p>
+        <>
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={voice.toggleMute}
+              title={voice.muted ? "Unmute your microphone" : "Mute your microphone"}
+              aria-label={voice.muted ? "Unmute your microphone" : "Mute your microphone"}
+              className={`flex items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 text-xs font-medium transition-colors ${
+                voice.speaking
+                  ? "border-mint-300/70 bg-mint-400/20 text-cream-50"
+                  : "border-white/10 bg-white/[0.05] text-cream-200"
+              }`}
+            >
+              <Avatar
+                src={selfAvatar}
+                name={selfName}
+                size={20}
+                ringClass={
+                  voice.muted ? "ring-chili-400" : voice.speaking ? "ring-mint-300" : "ring-white/15"
+                }
+              />
+              <span className="max-w-[7rem] truncate">{selfName} (you)</span>
+              {voice.muted && <span aria-hidden>🔇</span>}
+            </button>
+
+            {voice.peers.map((p) => (
+              <PeerChip
+                key={p.id}
+                peer={p}
+                avatarUrl={avatars?.[p.id]}
+                onClick={() => voice.toggleSilence(p.id)}
+              />
+            ))}
+
+            {voice.peers.length === 0 && (
+              <p className="text-xs text-cream-400/70">Waiting for someone else to join the call…</p>
+            )}
+          </div>
+
+          {/* Push-to-talk. The only reliable cure when two devices are in the
+              same room and echo cancellation can't win. */}
+          <div className="mt-3 flex items-center gap-2">
+            {voice.pushToTalk ? (
+              <button
+                type="button"
+                onPointerDown={() => voice.setTalking(true)}
+                onPointerUp={() => voice.setTalking(false)}
+                onPointerLeave={() => voice.setTalking(false)}
+                onPointerCancel={() => voice.setTalking(false)}
+                className={`btn flex-1 !min-h-11 !text-sm ${voice.talking ? "btn-primary" : "btn-secondary"}`}
+              >
+                {voice.talking ? "🎙️ Talking…" : "🤫 Hold to talk"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={voice.toggleMute}
+                className="btn btn-secondary flex-1 !min-h-11 !text-sm"
+              >
+                {voice.muted ? "🔇 Unmute" : "🎙️ Mute"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => voice.setPushToTalk(!voice.pushToTalk)}
+              aria-pressed={voice.pushToTalk}
+              className={`btn !min-h-11 !px-3 !text-xs ${
+                voice.pushToTalk ? "btn-primary" : "btn-secondary"
+              }`}
+            >
+              Push to talk
+            </button>
+          </div>
+
+          <p className="mt-2 text-[0.7rem] text-cream-400/70">
+            Hearing an echo? You&apos;re probably in the same room as another player — use
+            headphones, or turn on push-to-talk.
+          </p>
+
+          {failed.length > 0 && (
+            <p className="mt-2 rounded-lg bg-chili-500/15 px-3 py-2 text-xs text-chili-400" role="alert">
+              Couldn&apos;t reach {failed.map((p) => p.name).join(", ")}. Your network is blocking
+              the connection — mobile data or a different wifi usually fixes it.
+            </p>
           )}
-        </div>
+        </>
       )}
 
       {voice.error && (

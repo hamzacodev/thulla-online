@@ -49,6 +49,17 @@ with checks as (
          ) = 3
 
   union all
+  select 'room_messages table (table chat)',
+         to_regclass('public.room_messages') is not null
+
+  union all
+  select 'room chat is seat-gated (read + post policies)',
+         (
+           select count(*) from pg_policies
+           where schemaname = 'public' and tablename = 'room_messages'
+         ) = 2
+
+  union all
   select 'game_results table',
          to_regclass('public.game_results') is not null
 

@@ -8,6 +8,7 @@ import { GameOver } from "@/components/GameOver";
 import { Toast, type ToastMessage } from "@/components/Toast";
 import { ThullaToast } from "@/components/ThullaToast";
 import { VoiceChat } from "@/components/VoiceChat";
+import { ChatDrawer, RoomChat } from "@/components/RoomChat";
 import { Avatar } from "@/components/Avatar";
 import { useRoom } from "@/lib/useRoom";
 import { useAuth } from "@/lib/useAuth";
@@ -16,6 +17,7 @@ import { useStats } from "@/lib/useStats";
 import { useThulla } from "@/lib/useThulla";
 import { useVoice } from "@/lib/useVoice";
 import { useAvatars } from "@/lib/useAvatars";
+import { useRoomChat } from "@/lib/useRoomChat";
 import { authedFetch } from "@/lib/apiClient";
 import { legalMoves } from "@/lib/engine/rules";
 import type { Card } from "@/lib/engine/cards";
@@ -72,6 +74,17 @@ export default function RoomPage() {
   // Faces for everyone at the table, so a room of usernames is a room of
   // people. Looked up by id, so it works for the lobby and the game alike.
   const avatars = useAvatars(members.map((m) => m.id));
+
+  const chat = useRoomChat({ code: code || null, userId, name: myName, members });
+  const showChat = mySeat >= 0;
+
+  // In the lobby the chat is always on screen, so nothing is ever unread.
+  // During a game the drawer says when it's being looked at.
+  const inLobby = !state?.game || state.status === "waiting";
+  const markChatRead = chat.markRead;
+  useEffect(() => {
+    if (inLobby) markChatRead(true);
+  }, [inLobby, markChatRead]);
 
   // Same engine event, same one-per-trick guard, over realtime updates.
   const thulla = useThulla(game, mySeat);
@@ -252,6 +265,18 @@ export default function RoomPage() {
 
             <Link href="/" className="btn btn-ghost mt-2 w-full !text-xs">Leave room</Link>
           </div>
+
+          {showChat && (
+            <div className="panel mt-3 flex flex-col p-3">
+              <p className="mb-2 text-sm font-semibold text-cream-100">💬 Table chat</p>
+              <RoomChat
+                messages={chat.messages}
+                userId={userId}
+                avatars={avatars}
+                onSend={chat.send}
+              />
+            </div>
+          )}
         </div>
       </main>
     );
@@ -261,14 +286,24 @@ export default function RoomPage() {
   if (game.phase === "finished") {
     return (
       <main className="felt flex min-h-dvh flex-col">
-        {showVoice && (
-          <div className="relative z-20 flex justify-end px-3 pt-[max(0.4rem,env(safe-area-inset-top))]">
-            <VoiceChat
-              voice={voice}
-              selfName={myName}
+        {(showVoice || showChat) && (
+          <div className="relative z-20 flex justify-end gap-1 px-3 pt-[max(0.4rem,env(safe-area-inset-top))]">
+            {showVoice && (
+              <VoiceChat
+                voice={voice}
+                selfName={myName}
+                avatars={avatars}
+                selfAvatar={userId ? avatars[userId] : null}
+                variant="bar"
+              />
+            )}
+            <ChatDrawer
+              messages={chat.messages}
+              unread={chat.unread}
+              userId={userId}
               avatars={avatars}
-              selfAvatar={userId ? avatars[userId] : null}
-              variant="bar"
+              onSend={chat.send}
+              onOpenChange={chat.markRead}
             />
           </div>
         )}
@@ -297,8 +332,20 @@ export default function RoomPage() {
         <Link href="/" className="btn btn-ghost !min-h-9 !px-2 !text-xs" aria-label="Leave game">☰</Link>
         <span className="font-display hidden flex-1 text-base font-bold text-cream-50 sm:block">Thulla</span>
         <span className="tabular flex-1 text-[0.7rem] text-cream-400 sm:flex-none">
-          Room {code} · Trick {game.trickNumber}
+          <span className="hidden sm:inline">Room </span>
+          {code} · <span className="hidden sm:inline">Trick </span>
+          {game.trickNumber}
         </span>
+        {showChat && (
+          <ChatDrawer
+            messages={chat.messages}
+            unread={chat.unread}
+            userId={userId}
+            avatars={avatars}
+            onSend={chat.send}
+            onOpenChange={chat.markRead}
+          />
+        )}
         {showVoice && (
           <VoiceChat
             voice={voice}

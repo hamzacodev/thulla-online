@@ -290,7 +290,56 @@ create policy "Users delete their own avatar"
   );
 
 -- ------------------------------------------------------------
--- 7. Housekeeping — run occasionally, or wire to a scheduled job.
+-- 7. Table chat — the talking that isn't voice.
+--    Delivery is by Realtime broadcast, so a message lands instantly
+--    without depending on replication; this table is the history, so
+--    refreshing or joining late doesn't start you at a blank screen.
+-- ------------------------------------------------------------
+create table if not exists room_messages (
+  -- Supplied by the sender, so the broadcast copy and the stored copy are
+  -- the same message and a retry can't post twice.
+  id uuid primary key,
+  code text not null references rooms(code) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  body text not null,
+  created_at timestamptz not null default now(),
+  constraint room_messages_body_length check (char_length(body) between 1 and 500)
+);
+
+create index if not exists room_messages_code_idx
+  on room_messages (code, created_at desc);
+
+alter table room_messages enable row level security;
+
+-- Only people actually holding a seat can read or post. Rooms are publicly
+-- readable, so this is the check that keeps a room code from being a ticket
+-- into someone else's conversation.
+create or replace function public.is_seated(p_code text, p_user uuid)
+returns boolean
+language sql
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from rooms r
+    where r.code = p_code
+      and r.state -> 'seats' @> jsonb_build_array(jsonb_build_object('id', p_user::text))
+  );
+$$;
+
+drop policy if exists "Seated players read the chat" on room_messages;
+create policy "Seated players read the chat"
+  on room_messages for select to authenticated
+  using (public.is_seated(code, auth.uid()));
+
+drop policy if exists "Seated players post to the chat" on room_messages;
+create policy "Seated players post to the chat"
+  on room_messages for insert to authenticated
+  with check (auth.uid() = user_id and public.is_seated(code, auth.uid()));
+
+-- ------------------------------------------------------------
+-- 8. Housekeeping — run occasionally, or wire to a scheduled job.
 --    Only rooms are disposable; game_results is the permanent record.
 -- ------------------------------------------------------------
 -- delete from rooms where created_at < now() - interval '24 hours';
