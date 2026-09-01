@@ -79,6 +79,8 @@ export interface GameState {
   finishOrder: number[];
   /** The last player still holding cards — the Thulla. Set when finished. */
   thullaSeat: number | null;
+  /** Seats that gave up rather than played it out. Usually empty. */
+  conceded?: number[];
   /**
    * Suits each seat has been seen unable to follow, indexed by seat.
    *

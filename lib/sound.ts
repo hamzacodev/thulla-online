@@ -74,6 +74,103 @@ function tone(freq: number, duration: number, gainValue: number, type: Oscillato
   osc.stop(c.currentTime + duration);
 }
 
+/**
+ * A tone that slides from one pitch to another. Most comedy sounds are a
+ * pitch bend and not much else — a trombone, a slide whistle and a honk are
+ * all the same trick at different speeds.
+ */
+function glide(
+  from: number,
+  to: number,
+  duration: number,
+  gainValue: number,
+  type: OscillatorType = "sine"
+) {
+  const c = ensureContext();
+  if (!c || !enabled) return;
+  const osc = c.createOscillator();
+  const gain = c.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(from, c.currentTime);
+  // Exponential ramps can't reach zero, hence the floor.
+  osc.frequency.exponentialRampToValueAtTime(Math.max(20, to), c.currentTime + duration);
+  gain.gain.setValueAtTime(gainValue, c.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + duration);
+  osc.connect(gain).connect(c.destination);
+  osc.start();
+  osc.stop(c.currentTime + duration);
+}
+
+/** A tone with a second oscillator wobbling its pitch — boings and splats. */
+function wobble(
+  freq: number,
+  duration: number,
+  gainValue: number,
+  depth: number,
+  rate: number,
+  type: OscillatorType = "triangle"
+) {
+  const c = ensureContext();
+  if (!c || !enabled) return;
+  const osc = c.createOscillator();
+  const lfo = c.createOscillator();
+  const lfoGain = c.createGain();
+  const gain = c.createGain();
+
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, c.currentTime);
+  lfo.type = "sine";
+  lfo.frequency.setValueAtTime(rate, c.currentTime);
+  lfoGain.gain.setValueAtTime(depth, c.currentTime);
+  lfo.connect(lfoGain);
+  lfoGain.connect(osc.frequency);
+
+  gain.gain.setValueAtTime(gainValue, c.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + duration);
+  osc.connect(gain).connect(c.destination);
+
+  osc.start();
+  lfo.start();
+  osc.stop(c.currentTime + duration);
+  lfo.stop(c.currentTime + duration);
+}
+
+/**
+ * Five ways to laugh at somebody. Picked at random so the joke doesn't wear
+ * out — a thulla happens several times a game, and the same noise every time
+ * stops being funny by the third trick.
+ */
+const THULLA_JOKES: Array<() => void> = [
+  // Sad trombone: three notes down, the last one sagging.
+  () => {
+    const steps: Array<[number, number]> = [
+      [330, 294],
+      [294, 262],
+      [262, 185],
+    ];
+    steps.forEach(([from, to], i) =>
+      setTimeout(() => glide(from, to, i === 2 ? 0.6 : 0.24, 0.08, "sawtooth"), i * 210)
+    );
+  },
+  // Slide whistle, all the way down.
+  () => glide(1500, 240, 0.65, 0.055),
+  // Boing.
+  () => wobble(210, 0.55, 0.075, 130, 13),
+  // Party horn, deflating on the second toot.
+  () => {
+    glide(450, 415, 0.17, 0.07, "square");
+    setTimeout(() => glide(415, 280, 0.34, 0.07, "square"), 200);
+  },
+  // Splat — a low raspberry with a bit of noise on top.
+  () => {
+    wobble(95, 0.42, 0.09, 45, 24, "sawtooth");
+    noiseBurst(0.22, 420, 0.09, "lowpass");
+  },
+];
+
+/** Avoids repeating the same gag twice running. */
+let lastJoke = -1;
+
 export const sfx = {
   shuffle() {
     for (let i = 0; i < 5; i++) {
@@ -102,7 +199,12 @@ export const sfx = {
   win() {
     [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.22, 0.07, "triangle"), i * 105));
   },
+  /** Somebody just ate the pile. One of five jokes, never the same twice. */
   thulla() {
-    [440, 392, 330, 262].forEach((f, i) => setTimeout(() => tone(f, 0.26, 0.07, "sine"), i * 135));
+    if (!enabled) return;
+    let i = Math.floor(Math.random() * THULLA_JOKES.length);
+    if (i === lastJoke) i = (i + 1) % THULLA_JOKES.length;
+    lastJoke = i;
+    THULLA_JOKES[i]();
   },
 };

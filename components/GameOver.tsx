@@ -92,7 +92,11 @@ export function GameOver({
         </div>
 
         <p className="mt-4 text-base font-semibold text-cream-100">
-          {iAmThulla
+          {state.conceded?.length && thulla
+            ? iAmThulla
+              ? "🏳️ You quit — that's the Thulla."
+              : `🏳️ ${thulla.name} quit, so that's the Thulla.`
+            : iAmThulla
             ? `😂 ${t("thullaYou", lang)}`
             : thulla
             ? `😂 ${phrase.isThulla(thulla.name, lang)}`
@@ -102,6 +106,7 @@ export function GameOver({
         <ol className="mt-5 space-y-1.5 text-left">
           {table.map((p, i) => {
             const isThulla = p.seat === state.thullaSeat;
+            const quit = state.conceded?.includes(p.seat);
             return (
               <li
                 key={p.seat}
@@ -120,7 +125,13 @@ export function GameOver({
                   {p.seat === viewSeat && <span className="shrink-0 text-[0.65rem] text-brass-300">(you)</span>}
                 </span>
                 <span className="shrink-0 text-xs">
-                  {i === 0 ? "🏆" : isThulla ? "😂 Thulla" : `${i + 1}${["st", "nd", "rd"][i] ?? "th"}`}
+                  {i === 0
+                    ? "🏆"
+                    : quit
+                    ? "🏳️ quit"
+                    : isThulla
+                    ? "😂 Thulla"
+                    : `${i + 1}${["st", "nd", "rd"][i] ?? "th"}`}
                 </span>
               </li>
             );

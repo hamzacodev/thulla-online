@@ -369,6 +369,52 @@ export function standings(state: GameState): EnginePlayer[] {
   return [...ranked, ...rest];
 }
 
+/**
+ * A player gives up.
+ *
+ * Conceding makes you the Thulla and ends the game there. That is a
+ * deliberate choice on both counts. Ranking a quitter anywhere but last
+ * would make walking out the cheapest way to dodge a losing hand; and
+ * carrying on with their cards pulled out of the deck would leave two
+ * players who both deserve to be the Thulla, which the engine, the results
+ * table and every stat built on it all assume can't happen.
+ *
+ * Everyone who hadn't finished yet is placed by how close they were —
+ * fewest cards first — so a concession still settles the table honestly
+ * rather than voiding the game for the people who were winning it.
+ */
+export function concede(stateIn: GameState, seat: number): GameState {
+  if (stateIn.phase === "finished") return stateIn;
+  const player = stateIn.players[seat];
+  if (!player) return stateIn;
+
+  const state = clone(stateIn);
+  // Their cards leave play. auditState allows discards, so this is fine —
+  // it only ever asserts that no card is duplicated or invented.
+  state.players[seat].hand = [];
+  state.pile = [];
+  state.ledSuit = null;
+  state.trickOutcome = null;
+
+  const stillPlaying = state.players
+    .filter((p) => p.finishedRank === null && p.seat !== seat)
+    .sort((a, b) => a.hand.length - b.hand.length);
+
+  for (const p of stillPlaying) {
+    p.finishedRank = state.finishOrder.length;
+    state.finishOrder.push(p.seat);
+  }
+  state.players[seat].finishedRank = state.finishOrder.length;
+  state.finishOrder.push(seat);
+
+  state.conceded = [...(state.conceded ?? []), seat];
+  state.thullaSeat = seat;
+  state.phase = "finished";
+  state.turnSeat = -1;
+  state.updatedAt = Date.now();
+  return state;
+}
+
 /** Guard against a state that has drifted — used by tests and the API. */
 export function auditState(state: GameState): string[] {
   const problems: string[] = [];

@@ -9,6 +9,7 @@ import { Toast, type ToastMessage } from "@/components/Toast";
 import { ThullaToast } from "@/components/ThullaToast";
 import { VoiceChat } from "@/components/VoiceChat";
 import { ChatDrawer, RoomChat } from "@/components/RoomChat";
+import { QuitDialog } from "@/components/QuitDialog";
 import { Avatar } from "@/components/Avatar";
 import { useRoom } from "@/lib/useRoom";
 import { useAuth } from "@/lib/useAuth";
@@ -38,6 +39,9 @@ export default function RoomPage() {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [shakeCard, setShakeCard] = useState<Card | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [quitOpen, setQuitOpen] = useState(false);
+  const [quitting, setQuitting] = useState(false);
   const toastId = useRef(0);
   const lastNarrated = useRef("");
   const statsRefreshed = useRef(false);
@@ -141,6 +145,8 @@ export default function RoomPage() {
       say(o.winnerSeat === mySeat ? `🏆 ${t("trickWonYou", lang)}` : `🏆 ${phrase.wonTrick(who.name, lang)}`, "good");
     } else {
       sfx.pickup();
+      // The gag lands just after the cards are scooped up.
+      setTimeout(() => sfx.thulla(), 170);
       const who = game.players[o.collectorSeat];
       const broke = game.players[o.brokeBySeat];
       say(
@@ -180,6 +186,20 @@ export default function RoomPage() {
    * vote and the server deals as soon as the last seat has voted. Tapping
    * again takes the vote back.
    */
+  /** Concede: it ends the game and the loss is recorded like any other. */
+  async function handleQuit() {
+    setQuitting(true);
+    const data = await authedFetch("/api/quit", accessToken, { code });
+    setQuitting(false);
+    if (data.error) {
+      say(data.error, "error");
+      return;
+    }
+    setQuitOpen(false);
+    setMenuOpen(false);
+    refresh();
+  }
+
   async function handleRematch(now = false) {
     const data = await authedFetch("/api/rematch", accessToken, { code, now });
     if (data.error) say(data.error, "error");
@@ -384,9 +404,49 @@ export default function RoomPage() {
     <main className="felt flex h-dvh flex-col overflow-hidden">
       <Toast message={toast} />
       <ThullaToast notice={thulla} />
+      {quitOpen && (
+        <QuitDialog busy={quitting} onCancel={() => setQuitOpen(false)} onConfirm={handleQuit} />
+      )}
 
       <header className="relative z-20 flex shrink-0 items-center gap-2 px-2 pt-[max(0.4rem,env(safe-area-inset-top))] pb-1">
-        <Link href="/" className="btn btn-ghost !min-h-9 !px-2 !text-xs" aria-label="Leave game">☰</Link>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-expanded={menuOpen}
+          aria-label="Game menu"
+          className="btn btn-ghost !min-h-9 !px-2 !text-xs"
+        >
+          <span aria-hidden>☰</span>
+        </button>
+
+        {menuOpen && (
+          <>
+            <div className="fixed inset-0 z-30" aria-hidden onPointerDown={() => setMenuOpen(false)} />
+            <div className="panel absolute left-2 top-full z-40 mt-1 w-56 p-1.5">
+              <Link
+                href="/"
+                className="btn btn-ghost w-full !justify-start !min-h-10 !text-xs"
+                onClick={() => setMenuOpen(false)}
+              >
+                🏠 Back to home
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setQuitOpen(true);
+                }}
+                className="btn btn-ghost w-full !justify-start !min-h-10 !text-xs !text-chili-400"
+              >
+                🏳️ Quit this game
+              </button>
+              <p className="px-2.5 pb-1 pt-0.5 text-[0.65rem] leading-snug text-cream-400/70">
+                Going home leaves the table waiting for you. Quitting concedes: you&apos;re the
+                Thulla and the game ends.
+              </p>
+            </div>
+          </>
+        )}
         <span className="font-display hidden flex-1 text-base font-bold text-cream-50 sm:block">Thulla</span>
         <span className="tabular flex-1 text-[0.7rem] text-cream-400 sm:flex-none">
           <span className="hidden sm:inline">Room </span>
