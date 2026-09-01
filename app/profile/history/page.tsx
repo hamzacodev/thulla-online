@@ -21,7 +21,7 @@ const FILTERS: Array<{ id: HistoryFilter; label: string }> = [
   { id: "all", label: "All" },
   { id: "wins", label: "Wins" },
   { id: "losses", label: "Losses" },
-  { id: "bhabhi", label: "Bhabhi" },
+  { id: "thulla", label: "Thulla" },
   { id: "cpu", label: "vs CPU" },
   { id: "friends", label: "Friends" },
 ];

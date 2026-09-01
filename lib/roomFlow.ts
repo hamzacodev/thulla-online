@@ -43,11 +43,11 @@ export async function recordRoomResults(state: RoomState): Promise<void> {
     name: p.name,
     type: p.kind,
     position,
-    result: position === 0 ? "win" : p.seat === game.bhabhiSeat ? "bhabhi" : "placed",
+    result: position === 0 ? "win" : p.seat === game.thullaSeat ? "thulla" : "placed",
   }));
 
   const winner = table[0];
-  const bhabhi = game.bhabhiSeat !== null ? game.players[game.bhabhiSeat] : null;
+  const thulla = game.thullaSeat !== null ? game.players[game.thullaSeat] : null;
   const durationMs = Math.max(0, game.updatedAt - game.startedAt);
   const startedAt = new Date(game.startedAt).toISOString();
 
@@ -62,12 +62,12 @@ export async function recordRoomResults(state: RoomState): Promise<void> {
         cpuDifficulty: null,
         players,
         winnerName: winner?.name ?? null,
-        bhabhiName: bhabhi?.name ?? null,
+        thullaName: thulla?.name ?? null,
         winnerId: winner && winner.kind !== "cpu" ? winner.id : null,
-        bhabhiId: bhabhi && bhabhi.kind !== "cpu" ? bhabhi.id : null,
+        thullaId: thulla && thulla.kind !== "cpu" ? thulla.id : null,
         myPosition: position,
         isWin: position === 0,
-        isBhabhi: player.seat === game.bhabhiSeat,
+        isThulla: player.seat === game.thullaSeat,
         durationMs,
         startedAt,
       });

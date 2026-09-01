@@ -3,6 +3,7 @@
 import { cpuName } from "./engine/ai";
 import type { Difficulty } from "./engine/types";
 import { MAX_PLAYERS, MIN_PLAYERS } from "./engine/rules";
+import { readLocal } from "./localKeys";
 
 export interface TableSetup {
   playerCount: number;
@@ -10,7 +11,7 @@ export interface TableSetup {
   names: string[]; // index 0 is the human
 }
 
-const KEY = "bhabhi.setup.v1";
+const KEY = "thulla.setup.v1";
 
 export const PLAYER_COUNTS = Array.from(
   { length: MAX_PLAYERS - MIN_PLAYERS + 1 },
@@ -35,7 +36,7 @@ export function saveSetup(setup: TableSetup) {
 
 export function loadSetup(): TableSetup | null {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = readLocal(KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as TableSetup;
     if (

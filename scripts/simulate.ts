@@ -8,13 +8,13 @@ interface Report {
   stuck: number;
   audits: string[];
   illegal: number;
-  noBhabhi: number;
+  noThulla: number;
   aceStartWrong: number;
   cardsLost: number;
   firstTrickThulla: number;
   maxTricks: number;
   winsBySeat: Record<number, number>;
-  bhabhiBySeat: Record<number, number>;
+  thullaBySeat: Record<number, number>;
 }
 
 function playOne(count: number, difficulty: Difficulty, seed: number, rep: Report): void {
@@ -75,7 +75,7 @@ function playOne(count: number, difficulty: Difficulty, seed: number, rep: Repor
     rep.audits.push(`n=${count} seed=${seed}: STUCK after ${guard} steps at trick ${state.trickNumber}`);
     return;
   }
-  if (state.bhabhiSeat === null) rep.noBhabhi++;
+  if (state.thullaSeat === null) rep.noThulla++;
 
   const table = standings(state);
   if (table.length !== count) rep.audits.push(`n=${count} seed=${seed}: standings had ${table.length} of ${count}`);
@@ -84,8 +84,8 @@ function playOne(count: number, difficulty: Difficulty, seed: number, rep: Repor
   }
   const winner = table[0].seat;
   rep.winsBySeat[winner] = (rep.winsBySeat[winner] ?? 0) + 1;
-  if (state.bhabhiSeat !== null) {
-    rep.bhabhiBySeat[state.bhabhiSeat] = (rep.bhabhiBySeat[state.bhabhiSeat] ?? 0) + 1;
+  if (state.thullaSeat !== null) {
+    rep.thullaBySeat[state.thullaSeat] = (rep.thullaBySeat[state.thullaSeat] ?? 0) + 1;
   }
 }
 
@@ -95,18 +95,18 @@ let totalFail = 0;
 for (const difficulty of ["easy", "medium", "hard"] as Difficulty[]) {
   for (let count = 2; count <= 8; count++) {
     const rep: Report = {
-      games: 0, stuck: 0, audits: [], illegal: 0, noBhabhi: 0,
-      aceStartWrong: 0, cardsLost: 0, firstTrickThulla: 0, maxTricks: 0, winsBySeat: {}, bhabhiBySeat: {},
+      games: 0, stuck: 0, audits: [], illegal: 0, noThulla: 0,
+      aceStartWrong: 0, cardsLost: 0, firstTrickThulla: 0, maxTricks: 0, winsBySeat: {}, thullaBySeat: {},
     };
     for (let s = 0; s < GAMES_PER; s++) playOne(count, difficulty, s * 7919 + count * 13 + 1, rep);
     const bad =
       rep.stuck + rep.illegal + rep.aceStartWrong + rep.cardsLost + rep.firstTrickThulla + rep.audits.length;
     totalFail += bad;
-    const spread = Object.entries(rep.bhabhiBySeat).map(([k, v]) => `${k}:${v}`).join(" ");
+    const spread = Object.entries(rep.thullaBySeat).map(([k, v]) => `${k}:${v}`).join(" ");
     console.log(
       `${difficulty.padEnd(6)} ${count}p  games=${rep.games} stuck=${rep.stuck} illegal=${rep.illegal} ` +
-      `aceBad=${rep.aceStartWrong} dealBad=${rep.cardsLost} t1thulla=${rep.firstTrickThulla} noBhabhi=${rep.noBhabhi} ` +
-      `maxTricks=${rep.maxTricks}  bhabhiBySeat[${spread}]`
+      `aceBad=${rep.aceStartWrong} dealBad=${rep.cardsLost} t1thulla=${rep.firstTrickThulla} noThulla=${rep.noThulla} ` +
+      `maxTricks=${rep.maxTricks}  thullaBySeat[${spread}]`
     );
     for (const a of rep.audits.slice(0, 3)) console.log(`   ! ${a}`);
   }

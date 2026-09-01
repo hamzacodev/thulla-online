@@ -1,6 +1,6 @@
-# Bhabhi (Thulla) Online — Spec
+# Thulla (Thulla) Online — Spec
 
-A web version of the Pakistani card game **Bhabhi**, also called **Thulla**.
+A web version of the Pakistani card game **Thulla**, also called **Thulla**.
 Play against the computer on your own, or with friends anywhere. Free.
 
 Live: https://thulla-online.vercel.app
@@ -30,7 +30,7 @@ thing that happens dealing round a real table.
    the player holding the **highest card of the led suit** picks up the
    entire pile. They lead next.
 6. Empty your hand and you are **out, safe**. Play continues without you.
-7. The last player still holding cards is the **Bhabhi**.
+7. The last player still holding cards is the **Thulla**.
 
 There are no teams — it's every player for themselves.
 
@@ -76,7 +76,7 @@ write nothing, so they can't affect a record.
 
 - `npm run simulate` — plays 6,300 CPU-vs-CPU games across every player
   count and difficulty, asserting no stuck games, no illegal moves, a correct
-  Ace opener, 52 unique cards dealt, and exactly one Bhabhi.
+  Ace opener, 52 unique cards dealt, and exactly one Thulla.
 - `npm run ai-benchmark` — head-to-head difficulty comparison.
 - `npm run stats-test` — statistics and streak arithmetic.
 

@@ -23,7 +23,7 @@ function check(name: string, actual: unknown, expected: unknown) {
 }
 
 let clock = Date.parse("2026-01-01T00:00:00Z");
-function game(outcome: "win" | "loss" | "bhabhi", mode: "cpu" | "friends" = "cpu"): GameRecord {
+function game(outcome: "win" | "loss" | "thulla", mode: "cpu" | "friends" = "cpu"): GameRecord {
   clock += 60_000; // each game is later than the last
   return {
     id: `g${clock}`,
@@ -33,10 +33,10 @@ function game(outcome: "win" | "loss" | "bhabhi", mode: "cpu" | "friends" = "cpu
     cpuDifficulty: "medium",
     players: [],
     winnerName: "W",
-    bhabhiName: "B",
-    myPosition: outcome === "win" ? 0 : outcome === "bhabhi" ? 3 : 1,
+    thullaName: "B",
+    myPosition: outcome === "win" ? 0 : outcome === "thulla" ? 3 : 1,
     isWin: outcome === "win",
-    isBhabhi: outcome === "bhabhi",
+    isThulla: outcome === "thulla",
     durationMs: 1000,
     startedAt: null,
     completedAt: new Date(clock).toISOString(),
@@ -65,19 +65,19 @@ check("win,loss: current win streak resets", winThenLoss.currentWinStreak, 0);
 check("win,loss: current loss streak", winThenLoss.currentLossStreak, 1);
 check("win,loss: best streak survives", winThenLoss.bestWinStreak, 1);
 
-/* --- Bhabhi counts as a loss and resets the streak --- */
-const withBhabhi = computeStats([game("win"), game("bhabhi")]);
-check("bhabhi: counted", withBhabhi.bhabhi, 1);
-check("bhabhi: is a loss", withBhabhi.losses, 1);
-check("bhabhi: resets win streak", withBhabhi.currentWinStreak, 0);
+/* --- Thulla counts as a loss and resets the streak --- */
+const withThulla = computeStats([game("win"), game("thulla")]);
+check("thulla: counted", withThulla.thulla, 1);
+check("thulla: is a loss", withThulla.losses, 1);
+check("thulla: resets win streak", withThulla.currentWinStreak, 0);
 
 /* --- Streak arithmetic over a longer record --- */
-const seq = ["win", "win", "win", "loss", "win", "win", "bhabhi", "win"] as const;
+const seq = ["win", "win", "win", "loss", "win", "win", "thulla", "win"] as const;
 const long = computeStats(seq.map((o) => game(o)));
 check("long: games", long.games, 8);
 check("long: wins", long.wins, 6);
 check("long: losses", long.losses, 2);
-check("long: bhabhi", long.bhabhi, 1);
+check("long: thulla", long.thulla, 1);
 check("long: best win streak", long.bestWinStreak, 3);
 check("long: current win streak (last game was a win)", long.currentWinStreak, 1);
 check("long: win rate 1dp", winRate(long), 75);
@@ -99,11 +99,11 @@ check("cpu games", modes.cpuGames, 1);
 check("friend games", modes.friendGames, 2);
 
 /* --- Filters --- */
-const records = [game("win", "cpu"), game("loss", "friends"), game("bhabhi", "cpu")];
+const records = [game("win", "cpu"), game("loss", "friends"), game("thulla", "cpu")];
 check("filter all", applyFilter(records, "all").length, 3);
 check("filter wins", applyFilter(records, "wins").length, 1);
 check("filter losses", applyFilter(records, "losses").length, 2);
-check("filter bhabhi", applyFilter(records, "bhabhi").length, 1);
+check("filter thulla", applyFilter(records, "thulla").length, 1);
 check("filter cpu", applyFilter(records, "cpu").length, 2);
 check("filter friends", applyFilter(records, "friends").length, 1);
 
@@ -133,10 +133,10 @@ const payload = {
   cpuDifficulty: "medium" as const,
   players: [],
   winnerName: "You",
-  bhabhiName: "Chacha",
+  thullaName: "Chacha",
   myPosition: 0,
   isWin: true,
-  isBhabhi: false,
+  isThulla: false,
   durationMs: 1234,
   startedAt: null,
 };

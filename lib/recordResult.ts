@@ -10,7 +10,7 @@ export interface HistoryPlayerInput {
   name: string;
   type: "human" | "cpu" | "remote";
   position: number;
-  result: "win" | "bhabhi" | "placed";
+  result: "win" | "thulla" | "placed";
 }
 
 export interface ResultRow {
@@ -21,12 +21,12 @@ export interface ResultRow {
   cpuDifficulty: string | null;
   players: HistoryPlayerInput[];
   winnerName: string | null;
-  bhabhiName: string | null;
+  thullaName: string | null;
   winnerId: string | null;
-  bhabhiId: string | null;
+  thullaId: string | null;
   myPosition: number;
   isWin: boolean;
-  isBhabhi: boolean;
+  isThulla: boolean;
   durationMs: number | null;
   startedAt: string | null;
 }
@@ -56,12 +56,12 @@ export async function writeResult(row: ResultRow): Promise<WriteOutcome> {
         cpu_difficulty: row.cpuDifficulty,
         players: row.players,
         winner_name: row.winnerName,
-        bhabhi_name: row.bhabhiName,
+        thulla_name: row.thullaName,
         winner_id: row.winnerId,
-        bhabhi_id: row.bhabhiId,
+        thulla_id: row.thullaId,
         my_position: row.myPosition,
         is_win: row.isWin,
-        is_bhabhi: row.isBhabhi,
+        is_thulla: row.isThulla,
         duration_ms: row.durationMs,
         started_at: row.startedAt,
       },

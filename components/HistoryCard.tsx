@@ -16,7 +16,7 @@ export function relativeDay(iso: string): string {
 
 export function outcomeLabel(r: GameRecord): { text: string; icon: string; tone: string } {
   if (r.isWin) return { text: "Won", icon: "🏆", tone: "text-brass-300" };
-  if (r.isBhabhi) return { text: "Bhabhi", icon: "😂", tone: "text-chili-400" };
+  if (r.isThulla) return { text: "Thulla", icon: "😂", tone: "text-chili-400" };
   return { text: "Lost", icon: "❌", tone: "text-cream-400" };
 }
 
@@ -54,7 +54,7 @@ export function HistoryCard({ record }: { record: GameRecord }) {
           Winner: <span className="text-cream-100">{record.winnerName ?? "—"}</span>
         </span>
         <span>
-          Bhabhi: <span className="text-cream-100">{record.bhabhiName ?? "—"}</span>
+          Thulla: <span className="text-cream-100">{record.thullaName ?? "—"}</span>
         </span>
       </div>
     </Link>

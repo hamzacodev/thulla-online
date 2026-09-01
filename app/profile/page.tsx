@@ -96,7 +96,7 @@ export default function ProfilePage() {
                 <StatTile value={stats.wins} label="Wins" icon="🏆" accent="brass" />
                 <StatTile value={stats.losses} label="Losses" icon="❌" />
                 <StatTile value={formatWinRate(stats)} label="Win Rate" icon="📈" accent="mint" />
-                <StatTile value={stats.bhabhi} label="Bhabhi" icon="😂" accent="chili" />
+                <StatTile value={stats.thulla} label="Thulla" icon="😂" accent="chili" />
                 <StatTile value={stats.bestWinStreak} label="Best Streak" icon="🔥" accent="brass" />
               </div>
             </section>

@@ -95,7 +95,7 @@ export function statsQuip(stats: PlayerStats): string | null {
   if (stats.games === 0) return null;
   if (stats.currentWinStreak >= 3) return "Wah ji wah — winning streak chal rahi hai! 🔥";
   if (stats.currentLossStreak >= 3) return "Thoda rough patch hai. Agli game apni! 😅";
-  if (stats.bhabhi >= 5) return "Oho! Bhabhi count barh gaya 😂";
+  if (stats.thulla >= 5) return "Oho! Thulla count barh gaya 😂";
   const r = winRate(stats);
   if (r !== null && r >= 60 && stats.games >= 5) return "Kya record hai boss! 🔥";
   return null;

@@ -80,7 +80,7 @@ function LoginForm() {
 
       <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-4 pb-16">
         <div className="panel p-6">
-          <h2 className="font-display text-center text-2xl font-bold text-cream-50">Bhabhi</h2>
+          <h2 className="font-display text-center text-2xl font-bold text-cream-50">Thulla</h2>
           <p className="mt-1 text-center text-sm text-cream-400">
             {mode === "signin" ? "Welcome back — chalo khelein!" : "Sign up to play with friends"}
           </p>

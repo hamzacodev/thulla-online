@@ -77,7 +77,8 @@ export interface GameState {
   mustPlay: Card | null;
   /** Seats in the order they went out. Earlier = better placing. */
   finishOrder: number[];
-  bhabhiSeat: number | null;
+  /** The last player still holding cards — the Thulla. Set when finished. */
+  thullaSeat: number | null;
   startedAt: number;
   updatedAt: number;
 }

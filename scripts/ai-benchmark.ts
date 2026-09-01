@@ -22,20 +22,20 @@ function play(mix: Difficulty[], seed: number): number[] {
 
 // Rotate the difficulty assignment through every seat so seat bias cancels out.
 function headToHead(a: Difficulty, b: Difficulty, count: number, games: number) {
-  let aBhabhi = 0, bBhabhi = 0, aAvg = 0, bAvg = 0, aN = 0, bN = 0;
+  let aThulla = 0, bThulla = 0, aAvg = 0, bAvg = 0, aN = 0, bN = 0;
   for (let g = 0; g < games; g++) {
     const mix: Difficulty[] = Array.from({ length: count }, (_, i) => ((i + g) % 2 === 0 ? a : b));
     const places = play(mix, g * 104729 + count);
     const last = count - 1;
     for (let s = 0; s < count; s++) {
-      if (mix[s] === a) { aAvg += places[s]; aN++; if (places[s] === last) aBhabhi++; }
-      else { bAvg += places[s]; bN++; if (places[s] === last) bBhabhi++; }
+      if (mix[s] === a) { aAvg += places[s]; aN++; if (places[s] === last) aThulla++; }
+      else { bAvg += places[s]; bN++; if (places[s] === last) bThulla++; }
     }
   }
   const pct = (x: number, n: number) => ((x / n) * 100).toFixed(1);
   console.log(
     `${count}p  ${a.padEnd(6)} vs ${b.padEnd(6)}  ` +
-    `bhabhi-rate ${a}=${pct(aBhabhi, aN)}%  ${b}=${pct(bBhabhi, bN)}%  ` +
+    `thulla-rate ${a}=${pct(aThulla, aN)}%  ${b}=${pct(bThulla, bN)}%  ` +
     `| avg place ${a}=${(aAvg / aN).toFixed(2)} ${b}=${(bAvg / bN).toFixed(2)} (lower=better)`
   );
 }

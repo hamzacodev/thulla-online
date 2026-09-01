@@ -44,14 +44,14 @@ export function buildRecordPayload(state: GameState, mySeat: number) {
     name: p.name,
     type: p.kind,
     position,
-    result: position === 0 ? "win" : p.seat === state.bhabhiSeat ? "bhabhi" : "placed",
+    result: position === 0 ? "win" : p.seat === state.thullaSeat ? "thulla" : "placed",
   }));
 
   const myPosition = table.findIndex((p) => p.seat === mySeat);
   if (myPosition < 0) return null;
 
   const winner = table[0];
-  const bhabhi = state.bhabhiSeat !== null ? state.players[state.bhabhiSeat] : null;
+  const thulla = state.thullaSeat !== null ? state.players[state.thullaSeat] : null;
 
   return {
     gameId: state.gameId,
@@ -60,10 +60,10 @@ export function buildRecordPayload(state: GameState, mySeat: number) {
     cpuDifficulty: state.config.mode === "cpu" ? state.config.difficulty : null,
     players,
     winnerName: winner?.name ?? null,
-    bhabhiName: bhabhi?.name ?? null,
+    thullaName: thulla?.name ?? null,
     myPosition,
     isWin: myPosition === 0,
-    isBhabhi: state.bhabhiSeat === mySeat,
+    isThulla: state.thullaSeat === mySeat,
     durationMs: Math.max(0, state.updatedAt - state.startedAt),
     startedAt: new Date(state.startedAt).toISOString(),
   };
@@ -86,10 +86,10 @@ interface RemoteRow {
   cpu_difficulty: Difficulty | null;
   players: HistoryPlayer[];
   winner_name: string | null;
-  bhabhi_name: string | null;
+  thulla_name: string | null;
   my_position: number;
   is_win: boolean;
-  is_bhabhi: boolean;
+  is_thulla: boolean;
   duration_ms: number | null;
   started_at: string | null;
   completed_at: string;
@@ -104,10 +104,10 @@ function fromRow(r: RemoteRow): GameRecord {
     cpuDifficulty: r.cpu_difficulty,
     players: Array.isArray(r.players) ? r.players : [],
     winnerName: r.winner_name,
-    bhabhiName: r.bhabhi_name,
+    thullaName: r.thulla_name,
     myPosition: r.my_position,
     isWin: r.is_win,
-    isBhabhi: r.is_bhabhi,
+    isThulla: r.is_thulla,
     durationMs: r.duration_ms,
     startedAt: r.started_at,
     completedAt: r.completed_at,
@@ -160,7 +160,7 @@ export async function fetchRemoteHistory(opts: {
 
   if (filter === "wins") q = q.eq("is_win", true);
   else if (filter === "losses") q = q.eq("is_win", false);
-  else if (filter === "bhabhi") q = q.eq("is_bhabhi", true);
+  else if (filter === "thulla") q = q.eq("is_thulla", true);
   else if (filter === "cpu") q = q.eq("mode", "cpu");
   else if (filter === "friends") q = q.eq("mode", "friends");
 

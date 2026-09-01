@@ -99,12 +99,12 @@ export default function RoomPage() {
     }
     if (statsRefreshed.current) return;
     statsRefreshed.current = true;
-    if (game.bhabhiSeat === mySeat) sfx.bhabhi();
+    if (game.thullaSeat === mySeat) sfx.thulla();
     else sfx.win();
     // Give the server's write a beat to land before re-reading.
     const timer = setTimeout(() => refreshStats(), 700);
     return () => clearTimeout(timer);
-  }, [game?.phase, game?.bhabhiSeat, mySeat, refreshStats, game]);
+  }, [game?.phase, game?.thullaSeat, mySeat, refreshStats, game]);
 
   async function handleStart() {
     setBusy(true);

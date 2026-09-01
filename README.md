@@ -1,6 +1,6 @@
-# Bhabhi 🃏
+# Thulla 🃏
 
-A web version of the Pakistani card game **Bhabhi** (also called **Thulla**).
+A web version of the Pakistani card game **Thulla** (also called **Thulla**).
 2–8 players, against the computer or with friends. Mobile first.
 
 **Play:** https://thulla-online.vercel.app

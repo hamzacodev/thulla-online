@@ -128,7 +128,7 @@ export function createGame({ players, config }: CreateGameOptions): GameState {
     trickOutcome: null,
     mustPlay: mustLeadAceOfSpades && aceSeat >= 0 ? ACE_OF_SPADES : null,
     finishOrder: [],
-    bhabhiSeat: null,
+    thullaSeat: null,
     startedAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -287,13 +287,13 @@ export function resolveTrick(stateIn: GameState): GameState {
   if (remaining.length <= 1) {
     state.phase = "finished";
     if (remaining.length === 1) {
-      state.bhabhiSeat = remaining[0];
+      state.thullaSeat = remaining[0];
       state.players[remaining[0]].finishedRank = state.finishOrder.length;
       state.finishOrder.push(remaining[0]);
     } else {
       // Everyone emptied out on the same trick. The last one to shed is
-      // the Bhabhi, so there is always exactly one.
-      state.bhabhiSeat = state.finishOrder.length ? state.finishOrder[state.finishOrder.length - 1] : null;
+      // the Thulla, so there is always exactly one.
+      state.thullaSeat = state.finishOrder.length ? state.finishOrder[state.finishOrder.length - 1] : null;
     }
     state.turnSeat = -1;
     state.updatedAt = Date.now();
@@ -310,8 +310,10 @@ export function resolveTrick(stateIn: GameState): GameState {
 }
 
 /**
- * The thulla: somebody couldn't follow suit, so the player sitting on the
- * highest card of the led suit has the whole pile dumped on them.
+ * A thulla *move*: somebody couldn't follow suit, so the player sitting on
+ * the highest card of the led suit has the whole pile dumped on them. Not
+ * to be confused with `thullaSeat` on the state, which is the player left
+ * holding cards at the very end — the Thulla of the whole game.
  *
  * This is a selector over state the engine already decided — the rules
  * determine *when* a thulla happens, and the UI only asks. Returns null in
@@ -341,7 +343,7 @@ export function thullaEvent(state: GameState): ThullaEvent | null {
   };
 }
 
-/** Final placings, best first. Index 0 won; the last entry is the Bhabhi. */
+/** Final placings, best first. Index 0 won; the last entry is the Thulla. */
 export function standings(state: GameState): EnginePlayer[] {
   const ranked = state.finishOrder.map((seat) => state.players[seat]);
   const rest = state.players.filter((p) => p.finishedRank === null);

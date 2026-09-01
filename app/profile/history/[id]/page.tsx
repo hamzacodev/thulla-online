@@ -123,7 +123,7 @@ export default function GameDetailPage() {
                       <li
                         key={`${p.name}-${p.position}`}
                         className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
-                          p.result === "bhabhi"
+                          p.result === "thulla"
                             ? "bg-chili-500/10 ring-1 ring-chili-400/30"
                             : "bg-white/[0.04]"
                         } ${isMe ? "ring-1 ring-brass-300/50" : ""}`}
@@ -137,8 +137,8 @@ export default function GameDetailPage() {
                         <span className="shrink-0 text-xs">
                           {p.result === "win"
                             ? "🏆 Winner"
-                            : p.result === "bhabhi"
-                            ? "😂 Bhabhi"
+                            : p.result === "thulla"
+                            ? "😂 Thulla"
                             : `${p.position + 1}${["st", "nd", "rd"][p.position] ?? "th"}`}
                         </span>
                       </li>

@@ -6,8 +6,9 @@ import { MIN_PLAYERS, applyPlay, createGame, legalMoves, rejectionReason, resolv
 import type { Difficulty, EnginePlayer, GameState } from "./engine/types";
 import type { Card } from "./engine/cards";
 import { SPEED_FACTOR, type Speed } from "./settings";
+import { readLocal } from "./localKeys";
 
-const SAVE_KEY = "bhabhi.localgame.v3";
+const SAVE_KEY = "thulla.localgame.v3";
 
 export type Stage = "shuffling" | "dealing" | "table";
 
@@ -27,7 +28,7 @@ export type LocalGameEvent =
   | { type: "trickWon"; seat: number }
   | { type: "pickup"; seat: number; count: number }
   | { type: "out"; seat: number }
-  | { type: "finished"; bhabhiSeat: number | null };
+  | { type: "finished"; thullaSeat: number | null };
 
 interface Saved {
   state: GameState;
@@ -108,7 +109,7 @@ export function useLocalGame(options: LocalGameOptions) {
     initialisedFor.current = seatKey;
 
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      const raw = readLocal(SAVE_KEY);
       if (raw) {
         const saved = JSON.parse(raw) as Saved;
         // Resume any game — including a finished one, whose results screen
@@ -164,7 +165,7 @@ export function useLocalGame(options: LocalGameOptions) {
           const before = new Set(prev.finishOrder);
           const next = resolveTrick(prev);
           next.finishOrder.filter((s) => !before.has(s)).forEach((s) => emit.current?.({ type: "out", seat: s }));
-          if (next.phase === "finished") emit.current?.({ type: "finished", bhabhiSeat: next.bhabhiSeat });
+          if (next.phase === "finished") emit.current?.({ type: "finished", thullaSeat: next.thullaSeat });
           return next;
         });
       }, scale(1500));
@@ -255,7 +256,7 @@ export function useLocalGame(options: LocalGameOptions) {
         if (res.error) break;
         next = res.state;
       }
-      if (next.phase === "finished") emit.current?.({ type: "finished", bhabhiSeat: next.bhabhiSeat });
+      if (next.phase === "finished") emit.current?.({ type: "finished", thullaSeat: next.thullaSeat });
       return next;
     });
   }, [difficulty]);

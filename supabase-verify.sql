@@ -1,5 +1,5 @@
 -- ============================================================
--- Bhabhi — did supabase-schema.sql land?
+-- Thulla — did supabase-schema.sql land?
 -- Paste this into the Supabase SQL editor AFTER running
 -- supabase-schema.sql. Every row should read OK.
 -- Read-only: this changes nothing.

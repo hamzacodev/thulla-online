@@ -50,8 +50,8 @@ export const copy = {
   pickedUpYou: S("Oho! You picked up the pile", "Oho! Saare patte tumhare"),
   couldNotFollow: S("couldn't follow suit", "ke paas suit nahi tha"),
 
-  bhabhiIs: S("is the Bhabhi!", "Bhabhi ban gaya!"),
-  bhabhiYou: S("Ohooo! You're the Bhabhi", "Ohooo! Bhabhi ban gaye"),
+  thullaIs: S("is the Thulla!", "Thulla ban gaya!"),
+  thullaYou: S("Ohooo! You're the Thulla", "Ohooo! Thulla ban gaye"),
   winner: S("Winner", "Jeet gaya"),
   gameOver: S("Game Over", "Khel khatam"),
   greatGame: S("Kya game thi boss!", "Kya game thi boss!"),
@@ -87,8 +87,8 @@ export const phrase = {
       : `${name} picks up ${n} card${n === 1 ? "" : "s"}`,
   isThinking: (name: string, lang: Lang) =>
     lang === "ur" ? `${name} soch raha hai…` : `${name} is thinking…`,
-  isBhabhi: (name: string, lang: Lang) =>
-    lang === "ur" ? `${name} Bhabhi ban gaya!` : `${name} is the Bhabhi!`,
+  isThulla: (name: string, lang: Lang) =>
+    lang === "ur" ? `${name} Thulla ban gaya!` : `${name} is the Thulla!`,
   waitingFor: (name: string, lang: Lang) =>
     lang === "ur" ? `${name} ka intezaar…` : `Waiting for ${name}…`,
   isOut: (name: string, lang: Lang) =>

@@ -82,7 +82,7 @@ export default function LocalGamePage() {
         case "out":
           break;
         case "finished":
-          if (e.bhabhiSeat === 0) sfx.bhabhi();
+          if (e.thullaSeat === 0) sfx.thulla();
           else sfx.win();
           break;
       }

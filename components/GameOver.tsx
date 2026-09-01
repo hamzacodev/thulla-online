@@ -48,8 +48,8 @@ export function GameOver({
 }: GameOverProps) {
   const table = standings(state);
   const winner = table[0];
-  const bhabhi = state.bhabhiSeat !== null ? state.players[state.bhabhiSeat] : null;
-  const iAmBhabhi = state.bhabhiSeat === viewSeat;
+  const thulla = state.thullaSeat !== null ? state.players[state.thullaSeat] : null;
+  const iAmThulla = state.thullaSeat === viewSeat;
   const iWon = winner?.seat === viewSeat;
 
   return (
@@ -67,27 +67,27 @@ export function GameOver({
             <p className="mt-1 truncate font-semibold text-cream-50">{winner?.name ?? "—"}</p>
           </div>
           <div className="rounded-xl border border-chili-400/30 bg-chili-500/10 p-3">
-            <p className="text-[0.7rem] uppercase tracking-wider text-chili-400">😂 Bhabhi</p>
-            <p className="mt-1 truncate font-semibold text-cream-50">{bhabhi?.name ?? "—"}</p>
+            <p className="text-[0.7rem] uppercase tracking-wider text-chili-400">😂 Thulla</p>
+            <p className="mt-1 truncate font-semibold text-cream-50">{thulla?.name ?? "—"}</p>
           </div>
         </div>
 
         <p className="mt-4 text-base font-semibold text-cream-100">
-          {iAmBhabhi
-            ? `😂 ${t("bhabhiYou", lang)}`
-            : bhabhi
-            ? `😂 ${phrase.isBhabhi(bhabhi.name, lang)}`
+          {iAmThulla
+            ? `😂 ${t("thullaYou", lang)}`
+            : thulla
+            ? `😂 ${phrase.isThulla(thulla.name, lang)}`
             : ""}
         </p>
 
         <ol className="mt-5 space-y-1.5 text-left">
           {table.map((p, i) => {
-            const isBhabhi = p.seat === state.bhabhiSeat;
+            const isThulla = p.seat === state.thullaSeat;
             return (
               <li
                 key={p.seat}
                 className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
-                  isBhabhi ? "bg-chili-500/10 ring-1 ring-chili-400/30" : "bg-white/[0.04]"
+                  isThulla ? "bg-chili-500/10 ring-1 ring-chili-400/30" : "bg-white/[0.04]"
                 } ${p.seat === viewSeat ? "ring-1 ring-brass-300/50" : ""}`}
               >
                 <span className="flex min-w-0 items-center gap-2">
@@ -96,7 +96,7 @@ export function GameOver({
                   {p.seat === viewSeat && <span className="shrink-0 text-[0.65rem] text-brass-300">(you)</span>}
                 </span>
                 <span className="shrink-0 text-xs">
-                  {i === 0 ? "🏆" : isBhabhi ? "😂 Bhabhi" : `${i + 1}${["st", "nd", "rd"][i] ?? "th"}`}
+                  {i === 0 ? "🏆" : isThulla ? "😂 Thulla" : `${i + 1}${["st", "nd", "rd"][i] ?? "th"}`}
                 </span>
               </li>
             );

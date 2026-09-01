@@ -102,7 +102,7 @@ export const sfx = {
   win() {
     [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.22, 0.07, "triangle"), i * 105));
   },
-  bhabhi() {
+  thulla() {
     [440, 392, 330, 262].forEach((f, i) => setTimeout(() => tone(f, 0.26, 0.07, "sine"), i * 135));
   },
 };

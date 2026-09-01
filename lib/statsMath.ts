@@ -1,12 +1,13 @@
 import type { Difficulty } from "./engine/types";
+import { readLocal } from "./localKeys";
 
 /* ============================================================
    Types
    ============================================================ */
 
 export type GameMode = "cpu" | "friends";
-export type PlayerResult = "win" | "bhabhi" | "placed";
-export type HistoryFilter = "all" | "wins" | "losses" | "bhabhi" | "cpu" | "friends";
+export type PlayerResult = "win" | "thulla" | "placed";
+export type HistoryFilter = "all" | "wins" | "losses" | "thulla" | "cpu" | "friends";
 export type HistorySort = "newest" | "oldest";
 
 export interface HistoryPlayer {
@@ -14,7 +15,7 @@ export interface HistoryPlayer {
   playerId: string | null;
   name: string;
   type: "human" | "cpu" | "remote";
-  /** 0-based finishing place. 0 won; the highest is the Bhabhi. */
+  /** 0-based finishing place. 0 won; the highest is the Thulla. */
   position: number;
   result: PlayerResult;
 }
@@ -27,10 +28,10 @@ export interface GameRecord {
   cpuDifficulty: Difficulty | null;
   players: HistoryPlayer[];
   winnerName: string | null;
-  bhabhiName: string | null;
+  thullaName: string | null;
   myPosition: number;
   isWin: boolean;
-  isBhabhi: boolean;
+  isThulla: boolean;
   durationMs: number | null;
   startedAt: string | null;
   completedAt: string;
@@ -40,7 +41,7 @@ export interface PlayerStats {
   games: number;
   wins: number;
   losses: number;
-  bhabhi: number;
+  thulla: number;
   cpuGames: number;
   friendGames: number;
   currentWinStreak: number;
@@ -50,7 +51,7 @@ export interface PlayerStats {
 }
 
 export const EMPTY_STATS: PlayerStats = {
-  games: 0, wins: 0, losses: 0, bhabhi: 0, cpuGames: 0, friendGames: 0,
+  games: 0, wins: 0, losses: 0, thulla: 0, cpuGames: 0, friendGames: 0,
   currentWinStreak: 0, currentLossStreak: 0, bestWinStreak: 0, bestLossStreak: 0,
 };
 
@@ -87,7 +88,7 @@ export function computeStats(records: GameRecord[]): PlayerStats {
   for (const r of ordered) {
     s.games += 1;
     if (r.isWin) s.wins += 1;
-    if (r.isBhabhi) s.bhabhi += 1;
+    if (r.isThulla) s.thulla += 1;
     if (r.mode === "cpu") s.cpuGames += 1;
     else s.friendGames += 1;
 
@@ -118,7 +119,7 @@ export function applyFilter(records: GameRecord[], filter: HistoryFilter): GameR
   switch (filter) {
     case "wins": return records.filter((r) => r.isWin);
     case "losses": return records.filter((r) => !r.isWin);
-    case "bhabhi": return records.filter((r) => r.isBhabhi);
+    case "thulla": return records.filter((r) => r.isThulla);
     case "cpu": return records.filter((r) => r.mode === "cpu");
     case "friends": return records.filter((r) => r.mode === "friends");
     default: return records;
@@ -133,12 +134,12 @@ export type LocalRecordInput = Omit<GameRecord, "id" | "completedAt">;
    can't fill its storage quota with history.
    ============================================================ */
 
-const LOCAL_KEY = "bhabhi.history.v1";
+const LOCAL_KEY = "thulla.history.v1";
 const LOCAL_CAP = 300;
 
 export function readLocalHistory(): GameRecord[] {
   try {
-    const raw = localStorage.getItem(LOCAL_KEY);
+    const raw = readLocal(LOCAL_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as GameRecord[]) : [];

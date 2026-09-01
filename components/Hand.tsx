@@ -91,7 +91,7 @@ export function Hand({ hand, legal, enabled, shakeCard, onPlay, playLabel }: Han
     <div className="w-full">
       <div
         ref={containerRef}
-        className="flex flex-col items-center gap-1 px-2 pb-0.5 pt-8"
+        className="flex flex-col items-center gap-1 px-2 pb-4 pt-6"
         role="group"
         aria-label="Your hand"
         aria-disabled={!enabled}

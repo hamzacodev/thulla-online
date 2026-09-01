@@ -99,13 +99,13 @@ export function GameTable({
 
         {/* Centre pile — fills the space between the pods and the hand on a
             phone, absolutely centred inside the ring on a wider screen. */}
-        <div className="flex min-h-0 flex-1 items-end justify-center pb-1 md:absolute md:left-1/2 md:top-1/2 md:block md:w-auto md:flex-none md:items-center md:pb-0 md:-translate-x-1/2 md:-translate-y-1/2">
+        <div className="flex min-h-0 flex-1 items-center justify-center py-1 md:absolute md:left-1/2 md:top-1/2 md:block md:w-auto md:flex-none md:items-center md:pb-0 md:-translate-x-1/2 md:-translate-y-1/2">
           <TrickPile state={state} viewSeat={viewSeat} emptyLabel={t("yourTurnHint", lang)} />
         </div>
       </div>
 
       {/* Status line */}
-      <div className="flex min-h-[2.5rem] items-center justify-center px-3 pb-0.5 pt-1.5">
+      <div className="flex min-h-[2rem] items-center justify-center px-3 pb-0.5 pt-1">
         {banner ?? (
           <p
             className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
@@ -127,7 +127,7 @@ export function GameTable({
       </div>
 
       {/* Your seat */}
-      <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
+      <div className="shrink-0 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
         <div
           className={`mx-auto flex w-fit items-center justify-center gap-2 rounded-full px-3 py-1 text-xs transition-colors ${
             viewSeat === seniorSeat && seniorTone === "won"

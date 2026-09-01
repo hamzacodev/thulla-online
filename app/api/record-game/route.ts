@@ -4,7 +4,7 @@ import { writeResult, type HistoryPlayerInput } from "@/lib/recordResult";
 
 const DIFFICULTIES = new Set(["easy", "medium", "hard"]);
 const TYPES = new Set(["human", "cpu", "remote"]);
-const RESULTS = new Set(["win", "bhabhi", "placed"]);
+const RESULTS = new Set(["win", "thulla", "placed"]);
 const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
 
 function bad(error: string) {
@@ -18,7 +18,7 @@ function bad(error: string) {
  * the client — there is no server-side game to consult. What the server can
  * and does enforce: the caller is authenticated, the row is written as
  * *their* row, the payload is internally consistent (positions form a real
- * permutation, exactly one winner, the Bhabhi finished last), and the write
+ * permutation, exactly one winner, the Thulla finished last), and the write
  * is idempotent on gameId. Online games never come through here — those are
  * recorded from the authoritative room state in `resolve-trick`.
  */
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
   const seenPositions = new Set<number>();
   let humanCount = 0;
   let winners = 0;
-  let bhabhis = 0;
+  let thullas = 0;
 
   for (const raw of p.players as unknown[]) {
     const q = raw as Record<string, unknown>;
@@ -76,18 +76,18 @@ export async function POST(req: Request) {
 
     if (type === "human") humanCount += 1;
     if (result === "win") winners += 1;
-    if (result === "bhabhi") bhabhis += 1;
+    if (result === "thulla") thullas += 1;
 
-    // A winner is first, a Bhabhi is last — anything else is a broken table.
+    // A winner is first, a Thulla is last — anything else is a broken table.
     if (result === "win" && position !== 0) return bad("The winner must finish first.");
-    if (result === "bhabhi" && position !== playerCount - 1) return bad("The Bhabhi must finish last.");
+    if (result === "thulla" && position !== playerCount - 1) return bad("The Thulla must finish last.");
 
     players.push({ playerId: null, name, type: type as HistoryPlayerInput["type"], position, result: result as HistoryPlayerInput["result"] });
   }
 
   if (seenPositions.size !== playerCount) return bad("Finishing positions are incomplete.");
   if (winners !== 1) return bad("A finished game has exactly one winner.");
-  if (bhabhis > 1) return bad("A finished game has at most one Bhabhi.");
+  if (thullas > 1) return bad("A finished game has at most one Thulla.");
   if (humanCount !== 1) return bad("A single-player game has exactly one human.");
 
   const myPosition = Number(p.myPosition);
@@ -100,8 +100,8 @@ export async function POST(req: Request) {
 
   // Derive the flags rather than trusting them.
   const isWin = myPosition === 0;
-  const isBhabhi = me.result === "bhabhi";
-  if (p.isWin !== isWin || p.isBhabhi !== isBhabhi) return bad("Result flags don't match the finishing table.");
+  const isThulla = me.result === "thulla";
+  if (p.isWin !== isWin || p.isThulla !== isThulla) return bad("Result flags don't match the finishing table.");
 
   me.playerId = user.id;
 
@@ -122,7 +122,7 @@ export async function POST(req: Request) {
   }
 
   const winner = players.find((x) => x.position === 0) ?? null;
-  const bhabhi = players.find((x) => x.result === "bhabhi") ?? null;
+  const thulla = players.find((x) => x.result === "thulla") ?? null;
 
   const outcome = await writeResult({
     gameId,
@@ -132,12 +132,12 @@ export async function POST(req: Request) {
     cpuDifficulty: difficulty,
     players,
     winnerName: winner?.name ?? null,
-    bhabhiName: bhabhi?.name ?? null,
+    thullaName: thulla?.name ?? null,
     winnerId: winner?.playerId ?? null,
-    bhabhiId: bhabhi?.playerId ?? null,
+    thullaId: thulla?.playerId ?? null,
     myPosition,
     isWin,
-    isBhabhi,
+    isThulla,
     durationMs,
     startedAt,
   });

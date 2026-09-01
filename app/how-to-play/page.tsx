@@ -44,13 +44,13 @@ export default function HowToPlayPage() {
 
       <div className="mx-auto w-full max-w-md flex-1 space-y-3 px-4 pb-12 pt-4">
         <p className="text-center text-sm text-cream-400">
-          Bhabhi (also called Thulla) — the last player still holding cards loses. Simple as that.
+          Thulla (also called Thulla) — the last player still holding cards loses. Simple as that.
         </p>
 
         <Step icon="🃏" title="The Goal">
           <p>
             Get rid of all your cards. Everyone who empties their hand is <strong>safe</strong>. The
-            one player left holding cards at the end becomes the <strong>Bhabhi</strong> 😂
+            one player left holding cards at the end becomes the <strong>Thulla</strong> 😂
           </p>
         </Step>
 
@@ -106,12 +106,12 @@ export default function HowToPlayPage() {
           </p>
         </Step>
 
-        <Step icon="😂" title="Becoming Bhabhi">
+        <Step icon="😂" title="Becoming Thulla">
           <p>
             Empty your hand and you&apos;re out safe. Play continues without you. When only one
-            player still has cards, they&apos;re the Bhabhi — and everyone gets to enjoy it.
+            player still has cards, they&apos;re the Thulla — and everyone gets to enjoy it.
           </p>
-          <p className="text-xs text-cream-400">Ohooo! Bhabhi ban gaya 😄</p>
+          <p className="text-xs text-cream-400">Ohooo! Thulla ban gaya 😄</p>
         </Step>
 
         <Step icon="💡" title="A Bit of Strategy">

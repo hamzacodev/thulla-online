@@ -1,5 +1,5 @@
 -- ============================================================
--- Bhabhi (Thulla) Online — Supabase schema
+-- Thulla (Thulla) Online — Supabase schema
 -- Run this in your Supabase project: SQL Editor > New query.
 -- Safe to re-run: every statement is idempotent.
 -- ============================================================
@@ -101,13 +101,13 @@ create table if not exists game_results (
 
   winner_id uuid,
   winner_name text,
-  bhabhi_id uuid,
-  bhabhi_name text,
+  thulla_id uuid,
+  thulla_name text,
 
   -- This owner's own outcome, denormalised so stats need no jsonb digging.
   my_position int not null,
   is_win boolean not null,
-  is_bhabhi boolean not null,
+  is_thulla boolean not null,
 
   duration_ms integer check (duration_ms >= 0),
   started_at timestamptz,
@@ -149,7 +149,7 @@ as $$
 declare
   v_games int := 0;
   v_wins int := 0;
-  v_bhabhi int := 0;
+  v_thulla int := 0;
   v_cpu int := 0;
   v_friends int := 0;
   v_best_win int := 0;
@@ -171,14 +171,14 @@ begin
 
   -- Newest first, so the leading run is the *current* streak.
   for r in
-    select is_win, is_bhabhi, mode
+    select is_win, is_thulla, mode
     from game_results
     where owner_id = p_user
     order by completed_at desc, id desc
   loop
     v_games := v_games + 1;
     if r.is_win then v_wins := v_wins + 1; end if;
-    if r.is_bhabhi then v_bhabhi := v_bhabhi + 1; end if;
+    if r.is_thulla then v_thulla := v_thulla + 1; end if;
     if r.mode = 'cpu' then v_cpu := v_cpu + 1; else v_friends := v_friends + 1; end if;
 
     if v_current_is_win is null then
@@ -209,7 +209,7 @@ begin
     'games', v_games,
     'wins', v_wins,
     'losses', v_games - v_wins,
-    'bhabhi', v_bhabhi,
+    'thulla', v_thulla,
     'cpuGames', v_cpu,
     'friendGames', v_friends,
     'currentWinStreak', case when coalesce(v_current_is_win, false) then v_current_run else 0 end,

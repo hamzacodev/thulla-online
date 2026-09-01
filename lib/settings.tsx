@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { Lang } from "./copy";
 import type { Difficulty } from "./engine/types";
+import { readLocal } from "./localKeys";
 
 export type Speed = "chill" | "normal" | "fast";
 
@@ -22,7 +23,7 @@ const DEFAULTS: Settings = {
   difficulty: "medium",
 };
 
-const KEY = "bhabhi.settings.v1";
+const KEY = "thulla.settings.v1";
 
 /** Multiplier applied to every scripted pause, so "game speed" is one knob. */
 export const SPEED_FACTOR: Record<Speed, number> = {
@@ -51,7 +52,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(KEY);
+      const raw = readLocal(KEY);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration: the server can't see localStorage, so defaults render first
       if (raw) setSettings({ ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) });
     } catch {
