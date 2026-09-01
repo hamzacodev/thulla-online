@@ -151,6 +151,59 @@ body {
   }
 }
 
+@layer components {
+  /* Pile: a captioned row in play order on a phone, a ring of cards placed
+     in each player's direction once there's a real table to place them on. */
+  .pile-area {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 0.25rem 0.2rem;
+    max-width: 100%;
+  }
+
+  .pile-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+  }
+
+  .pile-name {
+    max-width: calc(var(--card-w) + 0.5rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.6rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  @media (min-width: 768px) {
+    .pile-area {
+      display: block;
+      position: relative;
+      width: calc(var(--card-w) * 2.9);
+      height: calc(var(--card-h) * 1.75);
+    }
+    .pile-card {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) translate(var(--px), var(--py)) rotate(var(--rot))
+        scale(var(--pop, 1));
+      transition: transform 260ms var(--ease-card);
+    }
+    .pile-name {
+      position: absolute;
+      top: calc(100% + 0.15rem);
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+}
+
 /* ============================================================
    Motion
    ============================================================ */
@@ -240,6 +293,24 @@ body {
   to { transform: translateX(var(--fan-x, 0)) rotate(var(--fan-rot, 0deg)); }
 }
 
+/* THULLA! — pop, bounce, hold, then lift away. translateX(-50%) is baked
+   into every step because the element is centred with left:50%. */
+@keyframes thulla-pop {
+  0%   { opacity: 0; transform: translate(-50%, 6px) scale(0.5) rotate(-7deg); }
+  22%  { opacity: 1; transform: translate(-50%, 0) scale(1.14) rotate(3deg); }
+  34%  { transform: translate(-50%, 0) scale(0.94) rotate(-2deg); }
+  45%  { transform: translate(-50%, 0) scale(1.05) rotate(1deg); }
+  55%  { transform: translate(-50%, 0) scale(1) rotate(0deg); }
+  86%  { opacity: 1; transform: translate(-50%, 0) scale(1) rotate(0deg); }
+  100% { opacity: 0; transform: translate(-50%, -18px) scale(0.88) rotate(0deg); }
+}
+
+@keyframes thulla-spark {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.4) rotate(0deg); }
+  30%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--spark-x, 0), var(--spark-y, -26px)) scale(1) rotate(var(--spark-rot, 40deg)); }
+}
+
 .anim-deal { animation: deal-in 420ms var(--ease-card) backwards; }
 .anim-play { animation: play-to-center 340ms var(--ease-card) backwards; }
 .anim-sweep { animation: sweep-away 420ms var(--ease-card) forwards; }
@@ -250,6 +321,8 @@ body {
 .anim-riffle { animation: shuffle-riffle 620ms ease-in-out infinite; }
 .anim-cut { animation: deck-cut 700ms var(--ease-card); }
 .anim-fan { animation: fan-out 480ms var(--ease-card) forwards; }
+.anim-thulla { animation: thulla-pop 1900ms var(--ease-card) forwards; }
+.anim-spark { animation: thulla-spark 900ms ease-out forwards; }
 
 .think-dot { animation: think-dots 1.25s ease-in-out infinite; }
 .think-dot:nth-child(2) { animation-delay: 0.16s; }
@@ -363,8 +436,8 @@ body {
   /* A bounded oval rather than "whatever height is left", so the table
      reads as a table instead of stretching to fill a tall monitor. */
   .seat-ring {
-    height: min(56vh, 30rem);
-    min-height: 20rem;
+    height: min(44vh, 24rem);
+    min-height: 16rem;
     max-width: 72rem;
     margin-inline: auto;
     width: 100%;

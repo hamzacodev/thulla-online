@@ -24,11 +24,13 @@ thing that happens dealing round a real table.
 2. **Follow suit if you can.** Play goes clockwise.
 3. **Everyone follows → highest card of the led suit wins the trick**, and
    the whole pile is discarded from the game. The winner leads next.
-4. **Someone can't follow (the thulla) → the trick ends immediately**, and
+4. **The opening trick is a free round** — being void in spades there is
+   not a thulla, play simply continues and the highest spade takes it.
+5. **After that, someone can't follow (the thulla) → the trick ends immediately**, and
    the player holding the **highest card of the led suit** picks up the
    entire pile. They lead next.
-5. Empty your hand and you are **out, safe**. Play continues without you.
-6. The last player still holding cards is the **Bhabhi**.
+6. Empty your hand and you are **out, safe**. Play continues without you.
+7. The last player still holding cards is the **Bhabhi**.
 
 There are no teams — it's every player for themselves.
 

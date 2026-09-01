@@ -7,7 +7,9 @@ import { GameTable } from "@/components/GameTable";
 import { GameOver } from "@/components/GameOver";
 import { ShuffleDeal } from "@/components/ShuffleDeal";
 import { Toast, type ToastMessage } from "@/components/Toast";
+import { ThullaToast } from "@/components/ThullaToast";
 import { useLocalGame, type LocalGameEvent } from "@/lib/useLocalGame";
+import { useThulla } from "@/lib/useThulla";
 import { useSettings } from "@/lib/settings";
 import { useAuth } from "@/lib/useAuth";
 import { loadSetup, type TableSetup } from "@/lib/setup";
@@ -96,7 +98,10 @@ export default function LocalGamePage() {
     onEvent,
   });
 
-  const { state, stage, invalid, play, rematch, humanSeat, legal, isHumanTurn } = game;
+  const { state, stage, invalid, play, rematch, fastForward, humanSeat, legal, isHumanTurn } = game;
+
+  // Driven by the engine's own thulla event, not by anything the UI does.
+  const thulla = useThulla(stage === "table" ? state : null, humanSeat);
 
   // Announce the Ace opener once the table appears — the rule that decides
   // who leads should be visible, not just implemented. Announced once per
@@ -227,13 +232,14 @@ export default function LocalGamePage() {
         <Link href="/" className="btn btn-ghost !min-h-9 !px-2 !text-xs" aria-label="Leave game">
           ☰
         </Link>
-        <span className="font-display flex-1 text-base font-bold text-cream-50">Bhabhi</span>
+        <span className="font-display flex-1 text-base font-bold text-cream-50">Thulla</span>
         <span className="tabular text-[0.7rem] text-cream-400">
           Trick {state.trickNumber} · {state.config.difficulty}
         </span>
       </header>
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+        <ThullaToast notice={thulla} />
         <GameTable
           state={state}
           viewSeat={humanSeat}
@@ -242,6 +248,11 @@ export default function LocalGamePage() {
           shakeCard={invalid?.card ?? null}
           lang={lang}
           onPlay={handlePlay}
+          outAction={
+            <button onClick={fastForward} className="btn btn-secondary !min-h-11 text-sm">
+              ⏭ Skip to the result
+            </button>
+          }
           banner={
             aceNotice ? (
               <p className="anim-pop rounded-full bg-brass-400/15 px-4 py-1.5 text-sm font-semibold text-brass-200 ring-1 ring-brass-300/40">

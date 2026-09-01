@@ -26,9 +26,9 @@ export default function Home() {
 
   return (
     <main className="felt flex min-h-dvh flex-col">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]">
         {/* Brand */}
-        <div className="flex flex-col items-center pt-6 text-center">
+        <div className="flex flex-col items-center text-center">
           <div
             className="relative mb-6"
             style={{ width: "calc(var(--card-w) * 2.9)", height: "calc(var(--card-h) * 1.18)" }}
@@ -48,14 +48,14 @@ export default function Home() {
               style={{ transform: "translateX(-50%) translateY(-6%)" }}
             />
           </div>
-          <h1 className="font-display text-5xl font-bold tracking-tight text-cream-50">BHABHI</h1>
+          <h1 className="font-display text-5xl font-bold tracking-tight text-cream-50">THULLA</h1>
           <p className="mt-1 text-sm font-medium uppercase tracking-[0.22em] text-brass-300">
             {t("tagline", lang)}
           </p>
           <p className="mt-3 max-w-xs text-sm italic text-cream-400">“{t("hook", lang)}” 😄</p>
         </div>
 
-        <div className="brass-rule my-7" />
+        <div className="brass-rule my-6" />
 
         {/* Primary actions */}
         <div className="flex flex-col gap-2.5">
@@ -83,7 +83,7 @@ export default function Home() {
         </div>
 
         {/* Account strip */}
-        <div className="mt-auto pt-8 text-center text-xs">
+        <div className="mt-8 text-center text-xs">
           {loading ? (
             <span className="text-cream-400/50">…</span>
           ) : userId ? (

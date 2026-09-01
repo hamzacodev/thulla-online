@@ -50,8 +50,12 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
       onClick={() => onChange(!on)}
       className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${on ? "bg-mint-400" : "bg-white/15"}`}
     >
+      {/* `left-0` is load-bearing: without it the knob is positioned from its
+          static position, which a button's default `text-align: center`
+          shifts to the middle of the track — so the "on" state slid the
+          knob straight out of the pill. */}
       <span
-        className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+        className={`absolute left-0 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
           on ? "translate-x-6" : "translate-x-1"
         }`}
       />

@@ -231,6 +231,35 @@ export function useLocalGame(options: LocalGameOptions) {
     [state]
   );
 
+  /**
+   * Runs the rest of the game out instantly. Only allowed once no human
+   * still holds cards — at that point every remaining decision is a CPU's,
+   * so there is nothing to skip past except waiting.
+   */
+  const fastForward = useCallback(() => {
+    clearTimer();
+    setState((prev) => {
+      if (!prev || prev.phase === "finished") return prev;
+      if (prev.players.some((p) => p.kind === "human" && p.hand.length > 0)) return prev;
+
+      let next = prev;
+      let guard = 0;
+      while (next.phase !== "finished" && guard++ < 20000) {
+        if (next.phase === "trickEnd") {
+          next = resolveTrick(next);
+          continue;
+        }
+        const card = chooseCard(next, next.turnSeat, difficulty) ?? legalMoves(next, next.turnSeat)[0];
+        if (!card) break;
+        const res = applyPlay(next, next.turnSeat, card);
+        if (res.error) break;
+        next = res.state;
+      }
+      if (next.phase === "finished") emit.current?.({ type: "finished", bhabhiSeat: next.bhabhiSeat });
+      return next;
+    });
+  }, [difficulty]);
+
   const humanSeat = state?.players.findIndex((p) => p.kind === "human") ?? -1;
   const legal = state && humanSeat >= 0 ? legalMoves(state, humanSeat) : [];
 
@@ -240,6 +269,7 @@ export function useLocalGame(options: LocalGameOptions) {
     invalid,
     play,
     rematch: start,
+    fastForward,
     humanSeat,
     legal,
     isHumanTurn:

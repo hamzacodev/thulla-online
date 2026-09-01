@@ -82,9 +82,19 @@ export default function HowToPlayPage() {
           </p>
         </Step>
 
+        <Step icon="🆓" title="The First Trick Is Free">
+          <p>
+            The opening Ace of Spades round is a <strong>free round</strong>. If you have no
+            spades there, throw anything you like — it&apos;s not a thulla and nobody picks
+            anything up. Play just carries on and the highest spade takes the trick.
+          </p>
+          <p className="text-xs text-cream-400">Pehli baari maaf hai 😄</p>
+        </Step>
+
         <Step icon="🎴" title="No Cards of That Suit? (Thulla)">
           <p>
-            If you can&apos;t follow suit, throw <em>any</em> card. The trick stops right there —
+            After the first round, if you can&apos;t follow suit, throw <em>any</em> card. The
+            trick stops right there —
             and whoever played the <strong>highest card of the led suit</strong> has to pick up the
             whole pile.
           </p>

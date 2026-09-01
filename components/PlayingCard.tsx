@@ -22,7 +22,11 @@ export interface PlayingCardProps {
   card: Card;
   className?: string;
   style?: CSSProperties;
-  /** Dim + desaturate, for cards that aren't legal right now. */
+  /**
+   * Dim a card that isn't relevant right now. Done with `brightness`, not
+   * `opacity`: a translucent card lets the green felt through and reads as
+   * blurred rather than dimmed, which makes the rank hard to see.
+   */
   muted?: boolean;
   title?: string;
 }
@@ -39,7 +43,7 @@ export function PlayingCard({ card, className = "", style, muted, title }: Playi
   return (
     <div
       className={`card-shell card-face ${className}`}
-      style={{ color: ink, opacity: muted ? 0.42 : 1, filter: muted ? "saturate(0.5)" : undefined, ...style }}
+      style={{ color: ink, filter: muted ? "brightness(0.58) saturate(0.9)" : undefined, ...style }}
       title={title}
     >
       {/* Corner index, mirrored bottom-right the way a real card reads. */}

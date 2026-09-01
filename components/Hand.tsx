@@ -91,7 +91,7 @@ export function Hand({ hand, legal, enabled, shakeCard, onPlay, playLabel }: Han
     <div className="w-full">
       <div
         ref={containerRef}
-        className="flex flex-col items-center gap-1 px-2 pb-3 pt-7"
+        className="flex flex-col items-center gap-1 px-2 pb-0.5 pt-8"
         role="group"
         aria-label="Your hand"
         aria-disabled={!enabled}
@@ -103,7 +103,7 @@ export function Hand({ hand, legal, enabled, shakeCard, onPlay, playLabel }: Han
               const isSelected = selected === card;
               const mid = (row.length - 1) / 2;
               const rot = row.length > 1 ? (i - mid) * Math.min(2.4, 16 / row.length) : 0;
-              const arc = row.length > 1 ? Math.min(8, Math.abs(i - mid) ** 2 * 0.2) : 0;
+              const arc = row.length > 1 ? Math.min(4, Math.abs(i - mid) ** 2 * 0.18) : 0;
 
               return (
                 <button
@@ -143,11 +143,14 @@ export function Hand({ hand, legal, enabled, shakeCard, onPlay, playLabel }: Han
         ))}
       </div>
 
-      <div className="flex h-11 items-center justify-center">
+      {/* On a phone the second tap on the raised card is the confirmation,
+          so the button is desktop-only — and the row collapses with it
+          rather than leaving an empty strip above the safe area. */}
+      <div className="flex h-0 items-center justify-center md:h-10">
         {selected && enabled && (
           <button
             type="button"
-            className="btn btn-primary anim-rise"
+            className="btn btn-primary anim-rise hidden md:inline-flex"
             onClick={() => {
               onPlay(selected);
               setPicked(null);

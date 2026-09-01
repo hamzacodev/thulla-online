@@ -3,6 +3,13 @@
 import { CardStack } from "./PlayingCard";
 import type { EnginePlayer } from "@/lib/engine/types";
 
+/** 0-based finishing position → "🏆 1st", "2nd", … */
+export function rankBadge(rank: number): string {
+  const n = rank + 1;
+  const suffix = n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th";
+  return `${n === 1 ? "🏆 " : ""}${n}${suffix}`;
+}
+
 interface SeatPodProps {
   player: EnginePlayer;
   isTurn: boolean;
@@ -10,6 +17,12 @@ interface SeatPodProps {
   thinkingLabel: string;
   cardsLabel: string;
   outLabel: string;
+  /**
+   * Set at the end of a trick on the player who played the highest card of
+   * the led suit — "won" when the pile is discarded, "collects" when they
+   * have to pick it up.
+   */
+  highlight?: "won" | "collects" | null;
   compact?: boolean;
   /** Drops the card thumbnail so many seats still fit round the table. */
   dense?: boolean;
@@ -27,6 +40,7 @@ export function SeatPod({
   thinkingLabel,
   cardsLabel,
   outLabel,
+  highlight,
   compact,
   dense,
 }: SeatPodProps) {
@@ -35,7 +49,11 @@ export function SeatPod({
   return (
     <div
       className={`flex items-center gap-2 rounded-2xl border px-2.5 py-2 transition-colors backdrop-blur-sm ${
-        isTurn
+        highlight === "won"
+          ? "anim-pop border-brass-300 bg-brass-400/20 shadow-[0_0_26px_-6px_rgba(229,193,121,0.9)]"
+          : highlight === "collects"
+          ? "anim-pop border-chili-400 bg-chili-500/20 shadow-[0_0_26px_-6px_rgba(226,87,76,0.9)]"
+          : isTurn
           ? "border-mint-300/70 bg-mint-400/10 anim-turn"
           : isOut
           ? "border-white/10 bg-white/[0.03] opacity-70"
@@ -63,8 +81,14 @@ export function SeatPod({
           <span aria-hidden className="text-xs">{player.kind === "cpu" ? "🤖" : "🙂"}</span>
           <span className="truncate text-sm font-semibold text-cream-50">{player.name}</span>
         </div>
-        {isOut ? (
-          <span className="text-[0.7rem] font-medium text-mint-300">✓ {outLabel}</span>
+        {highlight === "won" ? (
+          <span className="text-[0.7rem] font-semibold text-brass-200">🏆 took the trick</span>
+        ) : highlight === "collects" ? (
+          <span className="text-[0.7rem] font-semibold text-chili-400">😂 picks up</span>
+        ) : isOut ? (
+          <span className="text-[0.7rem] font-medium text-mint-300">
+            {player.finishedRank === null ? `✓ ${outLabel}` : `${rankBadge(player.finishedRank)} ${outLabel}`}
+          </span>
         ) : isThinking ? (
           <span className="flex items-center gap-1 text-[0.7rem] text-brass-300">
             {thinkingLabel}

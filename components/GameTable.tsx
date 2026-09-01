@@ -1,7 +1,7 @@
 "use client";
 
 import { Hand } from "./Hand";
-import { SeatPod } from "./SeatPod";
+import { SeatPod, rankBadge } from "./SeatPod";
 import { TrickPile } from "./TrickPile";
 import type { GameState } from "@/lib/engine/types";
 import type { Card } from "@/lib/engine/cards";
@@ -16,6 +16,8 @@ interface GameTableProps {
   lang: Lang;
   onPlay: (card: Card) => void;
   banner?: React.ReactNode;
+  /** Shown once the viewer is out — e.g. "skip to the result". */
+  outAction?: React.ReactNode;
 }
 
 /**
@@ -33,6 +35,7 @@ export function GameTable({
   lang,
   onPlay,
   banner,
+  outAction,
 }: GameTableProps) {
   const total = state.players.length;
   const me = state.players[viewSeat];
@@ -40,6 +43,18 @@ export function GameTable({
 
   const turnPlayer = state.phase === "playing" ? state.players[state.turnSeat] : null;
   const waitingOnCpu = turnPlayer?.kind === "cpu";
+
+  // At the end of a trick, mark whoever played the highest card of the led
+  // suit — they either took the trick or are about to eat the pile.
+  const outcome = state.phase === "trickEnd" ? state.trickOutcome : null;
+  const seniorSeat =
+    outcome?.kind === "discard"
+      ? outcome.winnerSeat
+      : outcome?.kind === "pickup"
+      ? outcome.collectorSeat
+      : -1;
+  const seniorTone: "won" | "collects" | null =
+    outcome?.kind === "discard" ? "won" : outcome?.kind === "pickup" ? "collects" : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col md:justify-center">
@@ -73,6 +88,7 @@ export function GameTable({
                 thinkingLabel={t("thinking", lang)}
                 cardsLabel={t("cards", lang)}
                 outLabel={t("safe", lang)}
+                highlight={p.seat === seniorSeat ? seniorTone : null}
                 compact={others.length > 4}
                 dense={others.length > 5}
               />
@@ -83,13 +99,13 @@ export function GameTable({
 
         {/* Centre pile — fills the space between the pods and the hand on a
             phone, absolutely centred inside the ring on a wider screen. */}
-        <div className="flex min-h-0 flex-1 items-center justify-center md:absolute md:left-1/2 md:top-1/2 md:block md:w-auto md:flex-none md:-translate-x-1/2 md:-translate-y-1/2">
+        <div className="flex min-h-0 flex-1 items-end justify-center pb-1 md:absolute md:left-1/2 md:top-1/2 md:block md:w-auto md:flex-none md:items-center md:pb-0 md:-translate-x-1/2 md:-translate-y-1/2">
           <TrickPile state={state} viewSeat={viewSeat} emptyLabel={t("yourTurnHint", lang)} />
         </div>
       </div>
 
       {/* Status line */}
-      <div className="flex min-h-[3.25rem] items-center justify-center px-3 py-2">
+      <div className="flex min-h-[2.5rem] items-center justify-center px-3 pb-0.5 pt-1.5">
         {banner ?? (
           <p
             className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
@@ -112,12 +128,26 @@ export function GameTable({
 
       {/* Your seat */}
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
-        <div className="flex items-center justify-center gap-2 px-3 pb-1 text-xs text-cream-400">
+        <div
+          className={`mx-auto flex w-fit items-center justify-center gap-2 rounded-full px-3 py-1 text-xs transition-colors ${
+            viewSeat === seniorSeat && seniorTone === "won"
+              ? "anim-pop bg-brass-400/20 text-brass-200 ring-1 ring-brass-300/60"
+              : viewSeat === seniorSeat && seniorTone === "collects"
+              ? "anim-pop bg-chili-500/20 text-chili-400 ring-1 ring-chili-400/60"
+              : "text-cream-400"
+          }`}
+        >
           <span aria-hidden>🙂</span>
           <span className="font-semibold text-cream-100">{me?.name}</span>
-          <span className="tabular">
-            · {me?.hand.length ?? 0} {t("cards", lang)}
-          </span>
+          {viewSeat === seniorSeat && seniorTone === "won" ? (
+            <span className="font-semibold">· 🏆 took the trick</span>
+          ) : viewSeat === seniorSeat && seniorTone === "collects" ? (
+            <span className="font-semibold">· 😂 picks up</span>
+          ) : (
+            <span className="tabular">
+              · {me?.hand.length ?? 0} {t("cards", lang)}
+            </span>
+          )}
         </div>
         {me && me.hand.length > 0 ? (
           <Hand
@@ -129,8 +159,12 @@ export function GameTable({
             playLabel={t("play", lang)}
           />
         ) : (
-          <div className="grid min-h-[8rem] place-items-center px-4 text-center">
-            <p className="text-sm text-mint-300">✓ {phrase.isOut(me?.name ?? "", lang)}</p>
+          <div className="grid min-h-[8rem] place-items-center gap-3 px-4 text-center">
+            <p className="text-sm font-semibold text-mint-300">
+              {me?.finishedRank != null ? `${rankBadge(me.finishedRank)} — ` : "✓ "}
+              {phrase.isOut(me?.name ?? "", lang)}
+            </p>
+            {outAction}
           </div>
         )}
       </div>

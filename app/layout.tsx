@@ -11,9 +11,9 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Bhabhi — The Desi Card Game",
+  title: "Thulla — The Desi Card Game",
   description:
-    "Play Bhabhi (Thulla) online — against the computer or with friends anywhere. 2 to 8 players, free.",
+    "Play Thulla (Bhabhi) online — against the computer or with friends anywhere. 2 to 8 players, free.",
 };
 
 export const viewport: Viewport = {

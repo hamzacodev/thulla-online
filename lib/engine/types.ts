@@ -46,6 +46,13 @@ export interface GameConfig {
   mode: "cpu" | "friends";
   /** The A♠ holder leads the first trick and must lead the A♠ itself. */
   mustLeadAceOfSpades: boolean;
+  /**
+   * House rule: the opening trick is a free round. Throwing off-suit there
+   * isn't a thulla — nobody picks the pile up, play just carries on round
+   * the table and the highest card of the led suit takes it as normal.
+   * Optional so games saved before this rule existed still load.
+   */
+  firstTrickImmune?: boolean;
   difficulty: Difficulty;
   seed: number;
 }

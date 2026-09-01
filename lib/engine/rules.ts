@@ -99,6 +99,7 @@ export function createGame({ players, config }: CreateGameOptions): GameState {
   }));
 
   const mustLeadAceOfSpades = config?.mustLeadAceOfSpades ?? true;
+  const firstTrickImmune = config?.firstTrickImmune ?? true;
 
   // The Ace rule is load-bearing, not decoration: the starting seat is
   // derived from who was actually dealt the A♠.
@@ -112,6 +113,7 @@ export function createGame({ players, config }: CreateGameOptions): GameState {
       playerCount: players.length,
       mode: config?.mode ?? "cpu",
       mustLeadAceOfSpades,
+      firstTrickImmune,
       difficulty: config?.difficulty ?? "medium",
       seed,
     },
@@ -202,7 +204,12 @@ export function applyPlay(stateIn: GameState, seat: number, card: Card): PlayRes
   const led = state.ledSuit;
   const brokeSuit = suitOf(card) !== led;
 
-  if (brokeSuit) {
+  // The opening trick is a free round: being void there costs nobody the
+  // pile. Play continues and the trick is settled the ordinary way.
+  // `?? true` so games saved before the rule existed still get it.
+  const immune = (state.config.firstTrickImmune ?? true) && state.trickNumber === 1;
+
+  if (brokeSuit && !immune) {
     // The thulla. Trick stops dead here and the player sitting on the
     // highest card of the led suit eats everything on the table — including
     // the off-suit card that was just thrown at them.
@@ -300,6 +307,38 @@ export function resolveTrick(stateIn: GameState): GameState {
   state.phase = "playing";
   state.updatedAt = Date.now();
   return state;
+}
+
+/**
+ * The thulla: somebody couldn't follow suit, so the player sitting on the
+ * highest card of the led suit has the whole pile dumped on them.
+ *
+ * This is a selector over state the engine already decided — the rules
+ * determine *when* a thulla happens, and the UI only asks. Returns null in
+ * every other situation, including a trick that everyone followed.
+ */
+export interface ThullaEvent {
+  /** Unique per thulla within a game: a trick can only end once. */
+  trickNumber: number;
+  /** The player who picks up the pile — the one who "gets the thulla". */
+  collectorSeat: number;
+  /** The player who was void and ended the trick. */
+  brokeBySeat: number;
+  brokeWith: Card;
+  cards: Card[];
+}
+
+export function thullaEvent(state: GameState): ThullaEvent | null {
+  if (state.phase !== "trickEnd") return null;
+  const outcome = state.trickOutcome;
+  if (!outcome || outcome.kind !== "pickup") return null;
+  return {
+    trickNumber: state.trickNumber,
+    collectorSeat: outcome.collectorSeat,
+    brokeBySeat: outcome.brokeBySeat,
+    brokeWith: outcome.brokeWith,
+    cards: outcome.cards,
+  };
 }
 
 /** Final placings, best first. Index 0 won; the last entry is the Bhabhi. */

@@ -6,10 +6,12 @@ import { useParams, useRouter } from "next/navigation";
 import { GameTable } from "@/components/GameTable";
 import { GameOver } from "@/components/GameOver";
 import { Toast, type ToastMessage } from "@/components/Toast";
+import { ThullaToast } from "@/components/ThullaToast";
 import { useRoom } from "@/lib/useRoom";
 import { useAuth } from "@/lib/useAuth";
 import { useSettings } from "@/lib/settings";
 import { useStats } from "@/lib/useStats";
+import { useThulla } from "@/lib/useThulla";
 import { authedFetch } from "@/lib/apiClient";
 import { legalMoves } from "@/lib/engine/rules";
 import type { Card } from "@/lib/engine/cards";
@@ -47,6 +49,9 @@ export default function RoomPage() {
 
   const game = state?.game ?? null;
   const mySeat = state?.seats.find((s) => s.id === userId)?.seat ?? -1;
+
+  // Same engine event, same one-per-trick guard, over realtime updates.
+  const thulla = useThulla(game, mySeat);
 
   /**
    * Once a finished trick's display window elapses, ask the server to clear
@@ -239,13 +244,14 @@ export default function RoomPage() {
 
       <header className="relative z-20 flex shrink-0 items-center gap-2 px-2 pt-[max(0.4rem,env(safe-area-inset-top))] pb-1">
         <Link href="/" className="btn btn-ghost !min-h-9 !px-2 !text-xs" aria-label="Leave game">☰</Link>
-        <span className="font-display flex-1 text-base font-bold text-cream-50">Bhabhi</span>
+        <span className="font-display flex-1 text-base font-bold text-cream-50">Thulla</span>
         <span className="tabular text-[0.7rem] text-cream-400">
           Room {code} · Trick {game.trickNumber}
         </span>
       </header>
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+        <ThullaToast notice={thulla} />
         <GameTable
           state={game}
           viewSeat={mySeat}

@@ -11,6 +11,7 @@ interface Report {
   noBhabhi: number;
   aceStartWrong: number;
   cardsLost: number;
+  firstTrickThulla: number;
   maxTricks: number;
   winsBySeat: Record<number, number>;
   bhabhiBySeat: Record<number, number>;
@@ -59,6 +60,12 @@ function playOne(count: number, difficulty: Difficulty, seed: number, rep: Repor
       break;
     }
     state = res.state;
+
+    // House rule: the opening trick is a free round, so it must never
+    // produce a pickup no matter who turns out to be void in spades.
+    if (state.trickNumber === 1 && state.trickOutcome?.kind === "pickup") {
+      rep.firstTrickThulla++;
+    }
   }
 
   rep.games++;
@@ -89,15 +96,16 @@ for (const difficulty of ["easy", "medium", "hard"] as Difficulty[]) {
   for (let count = 2; count <= 8; count++) {
     const rep: Report = {
       games: 0, stuck: 0, audits: [], illegal: 0, noBhabhi: 0,
-      aceStartWrong: 0, cardsLost: 0, maxTricks: 0, winsBySeat: {}, bhabhiBySeat: {},
+      aceStartWrong: 0, cardsLost: 0, firstTrickThulla: 0, maxTricks: 0, winsBySeat: {}, bhabhiBySeat: {},
     };
     for (let s = 0; s < GAMES_PER; s++) playOne(count, difficulty, s * 7919 + count * 13 + 1, rep);
-    const bad = rep.stuck + rep.illegal + rep.aceStartWrong + rep.cardsLost + rep.audits.length;
+    const bad =
+      rep.stuck + rep.illegal + rep.aceStartWrong + rep.cardsLost + rep.firstTrickThulla + rep.audits.length;
     totalFail += bad;
     const spread = Object.entries(rep.bhabhiBySeat).map(([k, v]) => `${k}:${v}`).join(" ");
     console.log(
       `${difficulty.padEnd(6)} ${count}p  games=${rep.games} stuck=${rep.stuck} illegal=${rep.illegal} ` +
-      `aceBad=${rep.aceStartWrong} dealBad=${rep.cardsLost} noBhabhi=${rep.noBhabhi} ` +
+      `aceBad=${rep.aceStartWrong} dealBad=${rep.cardsLost} t1thulla=${rep.firstTrickThulla} noBhabhi=${rep.noBhabhi} ` +
       `maxTricks=${rep.maxTricks}  bhabhiBySeat[${spread}]`
     );
     for (const a of rep.audits.slice(0, 3)) console.log(`   ! ${a}`);

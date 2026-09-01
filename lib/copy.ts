@@ -15,8 +15,8 @@ const S = (en: string, ur: string): Str => ({ en, ur });
 export const copy = {
   tagline: S("The desi card game", "Desi card game — asli maza"),
   hook: S(
-    "Dekhte hain aaj Bhabhi kaun banta hai!",
-    "Dekhte hain aaj Bhabhi kaun banta hai!"
+    "Dekhte hain aaj Thulla kis ko parta hai!",
+    "Dekhte hain aaj Thulla kis ko parta hai!"
   ),
 
   play: S("Play Game", "Game Khelo"),
