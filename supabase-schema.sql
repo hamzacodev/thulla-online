@@ -52,6 +52,15 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- Backfill anyone who signed up before that trigger existed. Without a row
+-- here, choosing a username used to be a silent no-op: an UPDATE matching
+-- nothing is not an error, so the app reported success and saved nothing.
+-- The app now upserts, but an account with no profile row is still wrong.
+insert into public.profiles (id, display_name)
+select u.id, nullif(u.raw_user_meta_data->>'display_name', '')
+from auth.users u
+on conflict (id) do nothing;
+
 -- ------------------------------------------------------------
 -- 2. Rooms — one row per online game.
 -- ------------------------------------------------------------

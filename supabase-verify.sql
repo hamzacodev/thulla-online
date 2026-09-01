@@ -14,6 +14,14 @@ with checks as (
          ) as ok
 
   union all
+  select 'every auth user has a profile row',
+         not exists (
+           select 1 from auth.users u
+           left join public.profiles p on p.id = u.id
+           where p.id is null
+         )
+
+  union all
   select 'profiles.avatar_url column',
          exists (
            select 1 from information_schema.columns
