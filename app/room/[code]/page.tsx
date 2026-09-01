@@ -250,7 +250,7 @@ export default function RoomPage() {
         <div className="panel p-6">
           <p className="font-semibold text-cream-50">No room with the code {code}.</p>
           <p className="mt-1 text-sm text-cream-400">It may have expired — rooms don&apos;t last forever.</p>
-          <Link href="/play?mode=friends" className="btn btn-primary mt-4 w-full">Back to rooms</Link>
+          <Link href="/games/thulla/play?mode=friends" className="btn btn-primary mt-4 w-full">Back to rooms</Link>
         </div>
       </main>
     );
@@ -262,7 +262,7 @@ export default function RoomPage() {
         <div className="panel p-6">
           <p className="font-semibold text-cream-50">You&apos;re not in this room.</p>
           <p className="mt-1 text-sm text-cream-400">Join with the code {code} to take a seat.</p>
-          <Link href="/play?mode=friends" className="btn btn-primary mt-4 w-full">Join a room</Link>
+          <Link href="/games/thulla/play?mode=friends" className="btn btn-primary mt-4 w-full">Join a room</Link>
         </div>
       </main>
     );
@@ -396,7 +396,7 @@ export default function RoomPage() {
             isHost: state.hostId === userId,
             onDealNow: () => void handleRematch(true),
           }}
-          onNewGame={() => router.push("/play?mode=friends")}
+          onNewGame={() => router.push("/games/thulla/play?mode=friends")}
         />
       </main>
     );

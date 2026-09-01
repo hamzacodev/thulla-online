@@ -230,7 +230,7 @@ export default function LocalGamePage() {
           statsAreLocal={isLocal}
           avatars={avatars}
           onRematch={handleRematch}
-          onNewGame={() => router.push("/play?mode=cpu")}
+          onNewGame={() => router.push("/games/thulla/play?mode=cpu")}
         />
       </main>
     );

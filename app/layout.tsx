@@ -11,9 +11,13 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Thulla — The Desi Card Game",
+  // The site is the platform; a game titles its own pages.
+  title: {
+    default: "Desi Card Games",
+    template: "%s — Desi Card Games",
+  },
   description:
-    "Play Thulla (Thulla) online — against the computer or with friends anywhere. 2 to 8 players, free.",
+    "A modern collection of classic Pakistani card games. Play the computer on your own, or deal your friends in from anywhere. Free.",
 };
 
 export const viewport: Viewport = {

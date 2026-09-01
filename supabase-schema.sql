@@ -170,6 +170,16 @@ set players = (
 )
 where players @> '[{"result": "bhabhi"}]'::jsonb;
 
+-- Which game a result belongs to. Every row so far is Thulla, which is what
+-- the default records, so this is additive and changes nothing today. It is
+-- here so the first result from a second game has somewhere to go without a
+-- migration on a table that by then holds real history. Nothing reads it
+-- yet — the app filters by game only once there is more than one.
+alter table game_results add column if not exists game text not null default 'thulla';
+
+create index if not exists game_results_owner_game_idx
+  on game_results (owner_id, game, completed_at desc);
+
 -- History is always read newest-first for one owner; this index serves both
 -- the listing and the stats scan.
 create index if not exists game_results_owner_completed_idx

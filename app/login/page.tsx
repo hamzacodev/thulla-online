@@ -169,7 +169,7 @@ function LoginForm() {
           )}
         </div>
 
-        <Link href="/play?mode=cpu" className="btn btn-ghost mt-4 !text-xs">
+        <Link href="/games/thulla/play?mode=cpu" className="btn btn-ghost mt-4 !text-xs">
           Or play vs the computer — no account needed
         </Link>
       </div>
