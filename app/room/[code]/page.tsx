@@ -414,9 +414,10 @@ export default function RoomPage() {
           onClick={() => setMenuOpen((v) => !v)}
           aria-expanded={menuOpen}
           aria-label="Game menu"
-          className="btn btn-ghost !min-h-9 !px-2 !text-xs"
+          className="btn btn-ghost !min-h-9 !gap-1.5 !px-2 !text-xs"
         >
           <span aria-hidden>☰</span>
+          <span className="hidden sm:inline">Menu</span>
         </button>
 
         {menuOpen && (

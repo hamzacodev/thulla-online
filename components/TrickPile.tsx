@@ -124,8 +124,12 @@ export function TrickPile({ state, viewSeat, emptyLabel }: TrickPileProps) {
         })}
       </div>
 
+      {/* On the wide layout the lowest card's caption hangs below the pile
+          area — it's absolutely positioned under its card — so this needs
+          clearing space or the two print on top of each other. On a phone
+          the captions are in normal flow and no margin is needed. */}
       {state.ledSuit && (
-        <p className="text-[0.7rem] text-cream-400/80">
+        <p className="text-[0.7rem] text-cream-400/80 md:mt-5">
           <span aria-hidden>{suitSymbol(state.ledSuit)}</span> {suitName(state.ledSuit)} led
         </p>
       )}
