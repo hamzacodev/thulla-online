@@ -161,9 +161,11 @@ declare
   v_current_closed boolean := false;
   r record;
 begin
-  -- Statistics are private: only the owner, or the server's service role,
-  -- can read them.
-  if auth.uid() is distinct from p_user and coalesce(auth.role(), '') <> 'service_role' then
+  -- Statistics are private. security definer lets this read game_results
+  -- past RLS, so the ownership check has to happen here explicitly —
+  -- otherwise any signed-in user could read anyone's record by passing a
+  -- different id. Server-side callers query the table directly instead.
+  if auth.uid() is distinct from p_user then
     raise exception 'not authorised';
   end if;
 

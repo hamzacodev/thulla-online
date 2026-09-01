@@ -13,10 +13,18 @@ export type {
   GameRecord,
   PlayerStats,
 } from "./statsMath";
-export { EMPTY_STATS, winRate, formatWinRate, computeStats, applyFilter } from "./statsMath";
+export {
+  EMPTY_STATS,
+  winRate,
+  formatWinRate,
+  computeStats,
+  applyFilter,
+  readLocalHistory,
+  saveLocalRecord,
+} from "./statsMath";
 
 import type { GameRecord, HistoryFilter, HistorySort, HistoryPlayer, GameMode, PlayerStats } from "./statsMath";
-import { EMPTY_STATS } from "./statsMath";
+import { EMPTY_STATS, saveLocalRecord } from "./statsMath";
 
 /* ============================================================
    Building a record from a finished game
@@ -62,44 +70,6 @@ export function buildRecordPayload(state: GameState, mySeat: number) {
 }
 
 export type RecordPayload = NonNullable<ReturnType<typeof buildRecordPayload>>;
-
-/* ============================================================
-   Local store — signed-out players. Capped so a long-running browser
-   can't fill its storage quota with history.
-   ============================================================ */
-
-const LOCAL_KEY = "bhabhi.history.v1";
-const LOCAL_CAP = 300;
-
-export function readLocalHistory(): GameRecord[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as GameRecord[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-/** Idempotent on `gameId`, so a re-render or refresh can't double-count. */
-export function saveLocalRecord(payload: RecordPayload): GameRecord[] {
-  const existing = readLocalHistory();
-  if (existing.some((r) => r.gameId === payload.gameId)) return existing;
-
-  const record: GameRecord = {
-    ...payload,
-    id: payload.gameId,
-    completedAt: new Date().toISOString(),
-  };
-  const next = [record, ...existing].slice(0, LOCAL_CAP);
-  try {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(next));
-  } catch {
-    /* quota — the game still finished, we just can't keep the record */
-  }
-  return next;
-}
 
 /* ============================================================
    Remote store — signed-in players.

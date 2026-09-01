@@ -124,3 +124,44 @@ export function applyFilter(records: GameRecord[], filter: HistoryFilter): GameR
     default: return records;
   }
 }
+
+/** The parts of a finished game the local store needs to keep one. */
+export type LocalRecordInput = Omit<GameRecord, "id" | "completedAt">;
+
+/* ============================================================
+   Local store — signed-out players. Capped so a long-running browser
+   can't fill its storage quota with history.
+   ============================================================ */
+
+const LOCAL_KEY = "bhabhi.history.v1";
+const LOCAL_CAP = 300;
+
+export function readLocalHistory(): GameRecord[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as GameRecord[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Idempotent on `gameId`, so a re-render or refresh can't double-count. */
+export function saveLocalRecord(payload: LocalRecordInput): GameRecord[] {
+  const existing = readLocalHistory();
+  if (existing.some((r) => r.gameId === payload.gameId)) return existing;
+
+  const record: GameRecord = {
+    ...payload,
+    id: payload.gameId,
+    completedAt: new Date().toISOString(),
+  };
+  const next = [record, ...existing].slice(0, LOCAL_CAP);
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(next));
+  } catch {
+    /* quota — the game still finished, we just can't keep the record */
+  }
+  return next;
+}

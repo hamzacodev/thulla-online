@@ -1,4 +1,11 @@
-import { computeStats, winRate, applyFilter, EMPTY_STATS } from "../lib/statsMath";
+import {
+  computeStats,
+  winRate,
+  applyFilter,
+  EMPTY_STATS,
+  readLocalHistory,
+  saveLocalRecord,
+} from "../lib/statsMath";
 import type { GameRecord } from "../lib/statsMath";
 
 let pass = 0;
@@ -106,6 +113,46 @@ check("filters are order-independent", applyFilter(shuffled, "wins").length, 1);
 const a = computeStats(records);
 const b = computeStats([...records].reverse());
 check("computeStats sorts by date, not array order", JSON.stringify(a), JSON.stringify(b));
+
+/* --- Idempotent recording: the guard against duplicate results --- */
+// Minimal localStorage stand-in so the real store code runs under Node.
+const mem = new Map<string, string>();
+(globalThis as unknown as { localStorage: Storage }).localStorage = {
+  getItem: (k: string) => mem.get(k) ?? null,
+  setItem: (k: string, v: string) => void mem.set(k, v),
+  removeItem: (k: string) => void mem.delete(k),
+  clear: () => mem.clear(),
+  key: () => null,
+  length: 0,
+} as unknown as Storage;
+
+const payload = {
+  gameId: "dup-check-1",
+  mode: "cpu" as const,
+  playerCount: 4,
+  cpuDifficulty: "medium" as const,
+  players: [],
+  winnerName: "You",
+  bhabhiName: "Chacha",
+  myPosition: 0,
+  isWin: true,
+  isBhabhi: false,
+  durationMs: 1234,
+  startedAt: null,
+};
+
+saveLocalRecord(payload);
+check("recording once stores one record", readLocalHistory().length, 1);
+saveLocalRecord(payload);
+saveLocalRecord(payload);
+check("re-recording the same gameId is a no-op", readLocalHistory().length, 1);
+check("stats see exactly one game", computeStats(readLocalHistory()).games, 1);
+
+// A rematch is a different gameId, so it must add a row.
+saveLocalRecord({ ...payload, gameId: "dup-check-2", isWin: false });
+check("a new gameId adds a record", readLocalHistory().length, 2);
+const s2 = computeStats(readLocalHistory());
+check("rematch counted separately", [s2.games, s2.wins, s2.losses], [2, 1, 1]);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
