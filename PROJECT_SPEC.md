@@ -80,7 +80,8 @@ write nothing, so they can't affect a record.
 
 ## Setup
 
-1. Run `supabase-schema.sql` in the Supabase SQL editor (safe to re-run).
+1. Run `supabase-schema.sql` in the Supabase SQL editor (safe to re-run),
+   then `supabase-verify.sql` to confirm every object landed.
 2. In Supabase → Authentication → URL Configuration, set **Site URL** to the
    deployed URL and add both it and `http://localhost:3000/**` to **Redirect
    URLs**, so confirmation and password-reset emails land in the right place.
