@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Avatar } from "./Avatar";
 import { MAX_MESSAGE_LENGTH, type ChatMessage } from "@/lib/useRoomChat";
 
@@ -165,6 +165,13 @@ export function ChatDrawer({
   onOpenChange: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    onOpenChange(false);
+  }, [onOpenChange]);
 
   function toggle() {
     const next = !open;
@@ -172,9 +179,36 @@ export function ChatDrawer({
     onOpenChange(next);
   }
 
+  /**
+   * Escape, or a tap anywhere else, puts the chat away. Deliberately not a
+   * full-screen backdrop: that would swallow taps meant for the mute button
+   * sitting right next to this one.
+   */
+  useEffect(() => {
+    if (!open) return;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    const onPointer = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
+      close();
+    };
+
+    window.addEventListener("keydown", onKey);
+    // Capture, so it still fires for handlers that stop propagation.
+    document.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer, true);
+    };
+  }, [open, close]);
+
   return (
     <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={toggle}
         aria-expanded={open}
@@ -191,8 +225,8 @@ export function ChatDrawer({
       </button>
 
       {open && (
-        <div className="absolute inset-x-2 top-full z-40 mt-1">
-          <div className="panel flex max-h-[70vh] flex-col p-3">
+        <div ref={panelRef} className="absolute inset-x-2 top-full z-40 mt-1">
+          <div className="panel anim-rise flex max-h-[70vh] flex-col p-3">
             <RoomChat
               messages={messages}
               userId={userId}

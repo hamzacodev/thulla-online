@@ -161,7 +161,6 @@ export function GameTable({
             enabled={isMyTurn}
             shakeCard={shakeCard}
             onPlay={onPlay}
-            playLabel={t("play", lang)}
           />
         ) : (
           <div className="grid min-h-[8rem] place-items-center gap-3 px-4 text-center">

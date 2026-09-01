@@ -5,7 +5,7 @@ import { thullaEvent } from "./engine/rules";
 import type { GameState } from "./engine/types";
 
 /** Pop, bounce, hold, fade — must match the thulla-pop keyframes. */
-export const THULLA_DURATION_MS = 1900;
+export const THULLA_DURATION_MS = 3900;
 
 export interface ThullaNotice {
   /** `gameId:trickNumber` — one thulla per trick, so this is the dedupe key. */

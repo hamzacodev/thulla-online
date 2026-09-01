@@ -310,13 +310,16 @@ body {
 
 /* THULLA! — pop, bounce, hold, then lift away. translateX(-50%) is baked
    into every step because the element is centred with left:50%. */
+/* Percentages are tuned against the 3900ms duration below: the pop and
+   bounce still finish inside the first second, and the extra time is spent
+   holding the message on screen rather than slowing the entrance down. */
 @keyframes thulla-pop {
   0%   { opacity: 0; transform: translate(-50%, 6px) scale(0.5) rotate(-7deg); }
-  22%  { opacity: 1; transform: translate(-50%, 0) scale(1.14) rotate(3deg); }
-  34%  { transform: translate(-50%, 0) scale(0.94) rotate(-2deg); }
-  45%  { transform: translate(-50%, 0) scale(1.05) rotate(1deg); }
-  55%  { transform: translate(-50%, 0) scale(1) rotate(0deg); }
-  86%  { opacity: 1; transform: translate(-50%, 0) scale(1) rotate(0deg); }
+  11%  { opacity: 1; transform: translate(-50%, 0) scale(1.14) rotate(3deg); }
+  17%  { transform: translate(-50%, 0) scale(0.94) rotate(-2deg); }
+  22%  { transform: translate(-50%, 0) scale(1.05) rotate(1deg); }
+  27%  { transform: translate(-50%, 0) scale(1) rotate(0deg); }
+  93%  { opacity: 1; transform: translate(-50%, 0) scale(1) rotate(0deg); }
   100% { opacity: 0; transform: translate(-50%, -18px) scale(0.88) rotate(0deg); }
 }
 
@@ -336,7 +339,7 @@ body {
 .anim-riffle { animation: shuffle-riffle 620ms ease-in-out infinite; }
 .anim-cut { animation: deck-cut 700ms var(--ease-card); }
 .anim-fan { animation: fan-out 480ms var(--ease-card) forwards; }
-.anim-thulla { animation: thulla-pop 1900ms var(--ease-card) forwards; }
+.anim-thulla { animation: thulla-pop 3900ms var(--ease-card) forwards; }
 .anim-spark { animation: thulla-spark 900ms ease-out forwards; }
 
 .think-dot { animation: think-dots 1.25s ease-in-out infinite; }

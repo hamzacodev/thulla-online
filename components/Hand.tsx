@@ -19,15 +19,22 @@ interface HandProps {
   enabled: boolean;
   shakeCard: Card | null;
   onPlay: (card: Card) => void;
-  playLabel: string;
 }
 
 /**
  * The human's hand. Two-step by design: the first tap raises a card, the
- * second plays it. On a phone that removes a whole class of mis-taps, and
- * it gives us somewhere to put an explicit Play button.
+ * second plays it. On a phone that removes a whole class of mis-taps; on a
+ * desktop the same two clicks are just a double-click, which is what people
+ * try first anyway.
+ *
+ * The raise is applied to the card *inside* the button, never to the button
+ * itself. That keeps the hit target exactly where it was when the first
+ * click landed — otherwise selecting a card slides it 1.4rem up and out from
+ * under the cursor, and the second click of a double-click lands on the
+ * table instead of on the card, which is why double-clicking used to do
+ * nothing.
  */
-export function Hand({ hand, legal, enabled, shakeCard, onPlay, playLabel }: HandProps) {
+export function Hand({ hand, legal, enabled, shakeCard, onPlay }: HandProps) {
   const [picked, setPicked] = useState<Card | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -112,30 +119,36 @@ export function Hand({ hand, legal, enabled, shakeCard, onPlay, playLabel }: Han
                   type="button"
                   onClick={() => handleTap(card)}
                   aria-label={`${cardLabel(card)}${isLegal ? "" : " — not playable now"}${
-                    isSelected ? " — selected, tap again to play" : ""
+                    isSelected ? " — selected, click again to play" : ""
                   }`}
                   aria-pressed={isSelected}
-                  className={`relative outline-offset-4 transition-transform duration-200 ease-[var(--ease-card)] ${
-                    shakeCard === card ? "anim-shake" : ""
-                  }`}
+                  className="relative select-none outline-offset-4"
                   style={{
                     // Each card advances by a fixed, tappable amount and the
                     // rest of it tucks under its neighbour.
                     marginLeft: i === 0 || !cardW ? 0 : `${advance - cardW}px`,
                     zIndex: isSelected ? 100 : i,
-                    ["--seat-rot" as string]: `${rot}deg`,
-                    transform: `translateY(${isSelected ? "-1.4rem" : `${arc}px`}) rotate(${rot}deg) scale(${
-                      isSelected ? 1.06 : 1
-                    })`,
                   }}
                 >
-                  <PlayingCard
-                    card={card}
-                    muted={enabled && !isLegal}
-                    className={
-                      isSelected ? "ring-2 ring-brass-300 shadow-[0_18px_30px_-12px_rgba(0,0,0,0.9)]" : ""
-                    }
-                  />
+                  <span
+                    className={`block transition-transform duration-200 ease-[var(--ease-card)] ${
+                      shakeCard === card ? "anim-shake" : ""
+                    }`}
+                    style={{
+                      ["--seat-rot" as string]: `${rot}deg`,
+                      transform: `translateY(${isSelected ? "-1.4rem" : `${arc}px`}) rotate(${rot}deg) scale(${
+                        isSelected ? 1.06 : 1
+                      })`,
+                    }}
+                  >
+                    <PlayingCard
+                      card={card}
+                      muted={enabled && !isLegal}
+                      className={
+                        isSelected ? "ring-2 ring-brass-300 shadow-[0_18px_30px_-12px_rgba(0,0,0,0.9)]" : ""
+                      }
+                    />
+                  </span>
                 </button>
               );
             })}
@@ -143,21 +156,17 @@ export function Hand({ hand, legal, enabled, shakeCard, onPlay, playLabel }: Han
         ))}
       </div>
 
-      {/* On a phone the second tap on the raised card is the confirmation,
-          so the button is desktop-only — and the row collapses with it
-          rather than leaving an empty strip above the safe area. */}
-      <div className="flex h-0 items-center justify-center md:h-10">
-        {selected && enabled && (
-          <button
-            type="button"
-            className="btn btn-primary anim-rise hidden md:inline-flex"
-            onClick={() => {
-              onPlay(selected);
-              setPicked(null);
-            }}
-          >
-            {playLabel} {cardLabel(selected)}
-          </button>
+      {/* A hint rather than a button: the second click on the raised card is
+          the confirmation, on a phone and on a desktop alike. The row
+          collapses on small screens rather than leaving an empty strip
+          above the safe area. */}
+      <div className="flex h-0 items-center justify-center md:h-9">
+        {enabled && (
+          <p className="hidden text-[0.72rem] text-cream-400/80 md:block" aria-hidden>
+            {selected
+              ? `Click ${cardLabel(selected)} again to play it`
+              : "Double-click a card to play it"}
+          </p>
         )}
       </div>
     </div>

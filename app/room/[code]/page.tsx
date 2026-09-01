@@ -327,6 +327,7 @@ export default function RoomPage() {
   return (
     <main className="felt flex h-dvh flex-col overflow-hidden">
       <Toast message={toast} />
+      <ThullaToast notice={thulla} />
 
       <header className="relative z-20 flex shrink-0 items-center gap-2 px-2 pt-[max(0.4rem,env(safe-area-inset-top))] pb-1">
         <Link href="/" className="btn btn-ghost !min-h-9 !px-2 !text-xs" aria-label="Leave game">☰</Link>
@@ -358,7 +359,6 @@ export default function RoomPage() {
       </header>
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
-        <ThullaToast notice={thulla} />
         <GameTable
           state={game}
           viewSeat={mySeat}

@@ -65,8 +65,12 @@ export function TrickPile({ state, viewSeat, emptyLabel }: TrickPileProps) {
                 ["--from-x" as string]: `${Math.cos(angle) * 83}px`,
                 ["--from-y" as string]: `${Math.sin(angle) * 79}px`,
                 ["--land-rot" as string]: `${spin}deg`,
-                ["--pop" as string]: isHigh && outcome ? "1.1" : "1",
-                zIndex: isHigh && outcome ? 50 : i + 1,
+                // The off-suit card is the whole story of the trick — it's
+                // the one that broke the suit — so it goes on top of the
+                // pile. Otherwise whoever played the highest card of the led
+                // suit covers it, and you can't see what actually happened.
+                ["--pop" as string]: brokeIt ? "1.14" : isHigh && outcome ? "1.1" : "1",
+                zIndex: brokeIt ? 60 : isHigh && outcome ? 50 : i + 1,
               }}
             >
               <PlayingCard
@@ -78,7 +82,7 @@ export function TrickPile({ state, viewSeat, emptyLabel }: TrickPileProps) {
                       ? "ring-2 ring-chili-400 shadow-[0_0_30px_-4px_rgba(226,87,76,0.85)]"
                       : "ring-2 ring-brass-300 shadow-[0_0_30px_-4px_rgba(229,193,121,0.85)]"
                     : brokeIt
-                    ? "ring-2 ring-chili-400/60"
+                    ? "ring-2 ring-chili-400 shadow-[0_0_34px_-2px_rgba(226,87,76,0.9)]"
                     : ""
                 }
               />
@@ -95,6 +99,7 @@ export function TrickPile({ state, viewSeat, emptyLabel }: TrickPileProps) {
                 }`}
               >
                 {isMe ? "You" : player?.name ?? "—"}
+                {brokeIt && <span className="text-chili-400"> · thulla!</span>}
               </span>
             </div>
           );
