@@ -110,7 +110,10 @@ export function GameTable({
 
         {/* Centre pile — fills the space between the pods and the hand on a
             phone, absolutely centred inside the ring on a wider screen. */}
-        <div className="flex min-h-0 flex-1 items-center justify-center py-1 md:absolute md:left-1/2 md:top-1/2 md:block md:w-auto md:flex-none md:items-center md:pb-0 md:-translate-x-1/2 md:-translate-y-1/2">
+        {/* z-2 beats the seats' z-1: the wrapper's own transform makes it a
+            stacking context, so a z-index on the pile inside it can't lift it
+            past a pod. If the two ever meet, the played cards win. */}
+        <div className="flex min-h-0 flex-1 items-center justify-center py-1 md:absolute md:left-1/2 md:top-1/2 md:z-[2] md:block md:w-auto md:flex-none md:items-center md:pb-0 md:-translate-x-1/2 md:-translate-y-1/2">
           <TrickPile state={state} viewSeat={viewSeat} emptyLabel={t("yourTurnHint", lang)} />
         </div>
       </div>

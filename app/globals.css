@@ -211,7 +211,7 @@ body {
       display: block;
       position: relative;
       width: calc(var(--card-w) * (1 + 1.8 * var(--spread, 1)));
-      height: calc(var(--card-h) * (1 + 0.84 * var(--spread, 1)));
+      height: calc(var(--card-h) * (1 + 0.76 * var(--spread, 1)));
     }
     .pile-card {
       position: absolute;
@@ -220,7 +220,7 @@ body {
       transform: translate(-50%, -50%)
         translate(
           calc(var(--pxf, 0) * var(--card-w) * 0.9),
-          calc(var(--pyf, 0) * var(--card-h) * 0.42)
+          calc(var(--pyf, 0) * var(--card-h) * 0.38)
         )
         rotate(var(--rot)) scale(var(--pop, 1));
       transition: transform 260ms var(--ease-card);
@@ -507,8 +507,7 @@ body {
       0 30px 70px -50px rgba(0, 0, 0, 0.9);
   }
 
-  .seat-slot,
-  .pile-area {
+  .seat-slot {
     z-index: 1;
   }
   .seat-slot {

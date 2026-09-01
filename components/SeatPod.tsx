@@ -65,8 +65,20 @@ export function SeatPod({
       }`}
       style={{ minWidth: dense ? "6.6rem" : compact ? "8.5rem" : "9.5rem" }}
     >
+      {/* The stack is drawn at 0.62, so its box is 0.62 too. It used to
+          reserve a full-height card and scale the paint down inside it,
+          which left every pod ~70px taller than it looked — enough to push
+          the top seat down onto the trick pile. Origin is top-left so the
+          scaled card lands exactly in the smaller box. */}
       {!dense && (
-      <div className="relative shrink-0" style={{ transform: "scale(0.62)", transformOrigin: "center", marginInline: "-0.7rem" }}>
+      <div
+        className="relative shrink-0 overflow-hidden"
+        style={{
+          width: "calc(var(--card-w) * 0.62)",
+          height: "calc(var(--card-h) * 0.62)",
+        }}
+      >
+        <div style={{ transform: "scale(0.62)", transformOrigin: "top left" }}>
         {isOut ? (
           <div
             className="grid place-items-center rounded-lg border border-dashed border-white/20 text-[0.6rem] text-cream-400"
@@ -77,6 +89,7 @@ export function SeatPod({
         ) : (
           <CardStack count={player.hand.length} />
         )}
+        </div>
       </div>
       )}
 
