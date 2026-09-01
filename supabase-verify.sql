@@ -64,6 +64,19 @@ with checks as (
          to_regclass('public.game_results') is not null
 
   union all
+  select 'game_results uses thulla_* column names (not the old bhabhi_*)',
+         exists (
+           select 1 from information_schema.columns
+           where table_schema = 'public' and table_name = 'game_results'
+             and column_name = 'is_thulla'
+         )
+         and not exists (
+           select 1 from information_schema.columns
+           where table_schema = 'public' and table_name = 'game_results'
+             and column_name = 'is_bhabhi'
+         )
+
+  union all
   select 'game_results idempotency constraint (owner_id, game_id)',
          exists (
            select 1 from pg_constraint

@@ -73,8 +73,8 @@ export function GameTable({
           // crowded table needs a wider arc and shorter pods to stay legible.
           const crowded = others.length > 5;
           const angle = Math.PI + ((i + 1) * Math.PI) / (others.length + 1);
-          const x = 50 + Math.cos(angle) * (crowded ? 45 : 40);
-          const y = 50 + Math.sin(angle) * (crowded ? 46 : 42);
+          const x = 50 + Math.cos(angle) * (crowded ? 47 : 44);
+          const y = 50 + Math.sin(angle) * (crowded ? 47 : 44);
           return (
             <div
               key={p.seat}

@@ -23,6 +23,14 @@ interface TrickPileProps {
  */
 export function TrickPile({ state, viewSeat, emptyLabel }: TrickPileProps) {
   const total = state.players.length;
+  /**
+   * How far cards sit from the middle, as a multiple of a card. Offsets used
+   * to be a flat 26px, which is two thirds of an overlap once a desktop card
+   * is 80px wide — the pile read as one shuffled heap with the names buried
+   * underneath. Expressed in card widths instead, it spreads properly at
+   * every size, and a busier table gets a wider ring to sit on.
+   */
+  const spread = Math.min(1.5, 0.8 + total * 0.1);
   const outcome = state.phase === "trickEnd" ? state.trickOutcome : null;
   const highSeat =
     outcome?.kind === "discard" ? outcome.winnerSeat : outcome?.kind === "pickup" ? outcome.collectorSeat : -1;
@@ -42,7 +50,7 @@ export function TrickPile({ state, viewSeat, emptyLabel }: TrickPileProps) {
 
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <div className="pile-area">
+      <div className="pile-area" style={{ ["--spread" as string]: spread.toFixed(2) }}>
         {state.pile.map((entry, i) => {
           const player = state.players[entry.seat];
           // Direction of that seat relative to the viewer — only used on
@@ -57,14 +65,11 @@ export function TrickPile({ state, viewSeat, emptyLabel }: TrickPileProps) {
           return (
             <div
               key={`${entry.card}-${entry.seat}`}
-              className="pile-card anim-play"
+              className="pile-card"
               style={{
-                ["--px" as string]: `${Math.cos(angle) * 26}px`,
-                ["--py" as string]: `${Math.sin(angle) * 22}px`,
+                ["--pxf" as string]: (Math.cos(angle) * spread).toFixed(3),
+                ["--pyf" as string]: (Math.sin(angle) * spread).toFixed(3),
                 ["--rot" as string]: `${spin}deg`,
-                ["--from-x" as string]: `${Math.cos(angle) * 83}px`,
-                ["--from-y" as string]: `${Math.sin(angle) * 79}px`,
-                ["--land-rot" as string]: `${spin}deg`,
                 // The off-suit card is the whole story of the trick — it's
                 // the one that broke the suit — so it goes on top of the
                 // pile. Otherwise whoever played the highest card of the led
@@ -73,19 +78,32 @@ export function TrickPile({ state, viewSeat, emptyLabel }: TrickPileProps) {
                 zIndex: brokeIt ? 60 : isHigh && outcome ? 50 : i + 1,
               }}
             >
-              <PlayingCard
-                card={entry.card}
-                muted={!!outcome && !isHigh && !brokeIt}
-                className={
-                  isHigh && outcome
-                    ? outcome.kind === "pickup"
-                      ? "ring-2 ring-chili-400 shadow-[0_0_30px_-4px_rgba(226,87,76,0.85)]"
-                      : "ring-2 ring-brass-300 shadow-[0_0_30px_-4px_rgba(229,193,121,0.85)]"
-                    : brokeIt
-                    ? "ring-2 ring-chili-400 shadow-[0_0_34px_-2px_rgba(226,87,76,0.9)]"
-                    : ""
-                }
-              />
+              {/* The fly-in lives on its own wrapper so it composes with the
+                  card's resting position instead of replacing it. Animating
+                  the positioned element itself made every card snap from the
+                  middle of the table to its real spot the instant the
+                  animation ended. */}
+              <div
+                className="pile-fly"
+                style={{
+                  ["--from-x" as string]: `${Math.cos(angle) * 83}px`,
+                  ["--from-y" as string]: `${Math.sin(angle) * 79}px`,
+                }}
+              >
+                <PlayingCard
+                  card={entry.card}
+                  muted={!!outcome && !isHigh && !brokeIt}
+                  className={
+                    isHigh && outcome
+                      ? outcome.kind === "pickup"
+                        ? "ring-2 ring-chili-400 shadow-[0_0_30px_-4px_rgba(226,87,76,0.85)]"
+                        : "ring-2 ring-brass-300 shadow-[0_0_30px_-4px_rgba(229,193,121,0.85)]"
+                      : brokeIt
+                      ? "ring-2 ring-chili-400 shadow-[0_0_34px_-2px_rgba(226,87,76,0.9)]"
+                      : ""
+                  }
+                />
+              </div>
               {/* Who played it — the thing that was impossible to tell on a phone. */}
               <span
                 className={`pile-name ${

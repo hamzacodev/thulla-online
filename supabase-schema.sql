@@ -125,6 +125,51 @@ create table if not exists game_results (
   constraint game_results_unique_per_owner unique (owner_id, game_id)
 );
 
+-- The game was called Bhabhi first, and `create table if not exists` does
+-- nothing to a table that already exists — so a database created before the
+-- rename still had bhabhi_id / bhabhi_name / is_bhabhi while the app asked
+-- for thulla_*. Renaming keeps every result that was already recorded;
+-- dropping and recreating would have thrown them away.
+do $$
+declare
+  pair text[];
+  pairs text[][] := array[
+    array['bhabhi_id', 'thulla_id'],
+    array['bhabhi_name', 'thulla_name'],
+    array['is_bhabhi', 'is_thulla']
+  ];
+begin
+  foreach pair slice 1 in array pairs loop
+    if exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'game_results'
+        and column_name = pair[1]
+    ) and not exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'game_results'
+        and column_name = pair[2]
+    ) then
+      execute format('alter table public.game_results rename column %I to %I', pair[1], pair[2]);
+    end if;
+  end loop;
+end
+$$;
+
+-- Old rows recorded the loser as 'bhabhi' inside the players JSON.
+update game_results
+set players = (
+  select jsonb_agg(
+    case
+      when p.value->>'result' = 'bhabhi' then jsonb_set(p.value, '{result}', '"thulla"')
+      else p.value
+    end
+    -- Ordinality, so the final standings keep the order they were saved in.
+    order by p.ord
+  )
+  from jsonb_array_elements(players) with ordinality as p(value, ord)
+)
+where players @> '[{"result": "bhabhi"}]'::jsonb;
+
 -- History is always read newest-first for one owner; this index serves both
 -- the listing and the stats scan.
 create index if not exists game_results_owner_completed_idx

@@ -196,25 +196,37 @@ body {
   }
 
   @media (min-width: 768px) {
+    /* Sized from the spread so the ring of cards always has room; a fixed
+       box cropped the outer cards on a busy table. */
     .pile-area {
       display: block;
       position: relative;
-      width: calc(var(--card-w) * 2.9);
-      height: calc(var(--card-h) * 1.75);
+      width: calc(var(--card-w) * (1 + 1.8 * var(--spread, 1)));
+      height: calc(var(--card-h) * (1 + 0.92 * var(--spread, 1)));
     }
     .pile-card {
       position: absolute;
       left: 50%;
       top: 50%;
-      transform: translate(-50%, -50%) translate(var(--px), var(--py)) rotate(var(--rot))
-        scale(var(--pop, 1));
+      transform: translate(-50%, -50%)
+        translate(
+          calc(var(--pxf, 0) * var(--card-w) * 0.9),
+          calc(var(--pyf, 0) * var(--card-h) * 0.46)
+        )
+        rotate(var(--rot)) scale(var(--pop, 1));
       transition: transform 260ms var(--ease-card);
     }
     .pile-name {
       position: absolute;
-      top: calc(100% + 0.15rem);
+      top: calc(100% + 0.2rem);
       left: 50%;
+      max-width: calc(var(--card-w) * 2);
       transform: translateX(-50%);
+      /* Cards still overlap a little by design, so the caption needs its own
+         ground to stay readable over a neighbour. */
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      background: rgba(7, 13, 11, 0.78);
     }
   }
 }
@@ -233,17 +245,19 @@ body {
   }
 }
 
+/* Relative to wherever the card ends up resting, never absolute — this runs
+   on an inner wrapper so it composes with the pile's own positioning. */
 @keyframes play-to-center {
   from {
     opacity: 0;
-    transform: translate(var(--from-x, 0), var(--from-y, 60px)) rotate(0deg) scale(0.85);
+    transform: translate(var(--from-x, 0), var(--from-y, 60px)) rotate(-6deg) scale(0.85);
   }
   60% {
     opacity: 1;
   }
   to {
     opacity: 1;
-    transform: translate(0, 0) rotate(var(--land-rot, 0deg)) scale(1);
+    transform: translate(0, 0) rotate(0deg) scale(1);
   }
 }
 
@@ -330,7 +344,7 @@ body {
 }
 
 .anim-deal { animation: deal-in 420ms var(--ease-card) backwards; }
-.anim-play { animation: play-to-center 340ms var(--ease-card) backwards; }
+.pile-fly { animation: play-to-center 340ms var(--ease-card) backwards; }
 .anim-sweep { animation: sweep-away 420ms var(--ease-card) forwards; }
 .anim-shake { animation: card-shake 420ms ease-in-out; }
 .anim-turn { animation: turn-pulse 1.9s ease-in-out infinite; }
@@ -454,8 +468,8 @@ body {
   /* A bounded oval rather than "whatever height is left", so the table
      reads as a table instead of stretching to fill a tall monitor. */
   .seat-ring {
-    height: min(44vh, 24rem);
-    min-height: 16rem;
+    height: min(50vh, 28rem);
+    min-height: 17rem;
     max-width: 72rem;
     margin-inline: auto;
     width: 100%;
