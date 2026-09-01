@@ -69,12 +69,18 @@ export function GameTable({
         <div className="flex flex-wrap items-start justify-center gap-2 px-2 pt-2 md:contents">
         {others.map((p, i) => {
           // Spread across the upper half of the ellipse, left to right.
-          // Spread across the upper half of the ellipse, left to right. A
-          // crowded table needs a wider arc and shorter pods to stay legible.
+          //
+          // Evenly spaced *interior* angles used to leave the ends unused:
+          // three opponents landed on cos(±π/4), which is 70% of the radius,
+          // so they huddled in the middle third of a wide screen with acres
+          // of empty felt either side. Walking the arc end to end instead
+          // puts the outermost players where the table actually ends.
           const crowded = others.length > 5;
-          const angle = Math.PI + ((i + 1) * Math.PI) / (others.length + 1);
-          const x = 50 + Math.cos(angle) * (crowded ? 47 : 44);
-          const y = 50 + Math.sin(angle) * (crowded ? 47 : 44);
+          // 0 at the left end of the arc, 1 at the right.
+          const along = others.length === 1 ? 0.5 : 0.09 + (0.82 * i) / (others.length - 1);
+          const angle = Math.PI + Math.PI * along;
+          const x = 50 + Math.cos(angle) * (crowded ? 46 : 44);
+          const y = 50 + Math.sin(angle) * (crowded ? 45 : 42);
           return (
             <div
               key={p.seat}
