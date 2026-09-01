@@ -1,0 +1,55 @@
+"use client";
+
+import { cpuName } from "./engine/ai";
+import type { Difficulty } from "./engine/types";
+import { MAX_PLAYERS, MIN_PLAYERS } from "./engine/rules";
+
+export interface TableSetup {
+  playerCount: number;
+  difficulty: Difficulty;
+  names: string[]; // index 0 is the human
+}
+
+const KEY = "bhabhi.setup.v1";
+
+export const PLAYER_COUNTS = Array.from(
+  { length: MAX_PLAYERS - MIN_PLAYERS + 1 },
+  (_, i) => MIN_PLAYERS + i
+);
+
+export function defaultNames(count: number, humanName: string): string[] {
+  return Array.from({ length: count }, (_, i) => (i === 0 ? humanName : cpuName(i - 1)));
+}
+
+export function defaultSetup(humanName = "You"): TableSetup {
+  return { playerCount: 4, difficulty: "medium", names: defaultNames(4, humanName) };
+}
+
+export function saveSetup(setup: TableSetup) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(setup));
+  } catch {
+    /* the game still starts, it just won't be remembered next time */
+  }
+}
+
+export function loadSetup(): TableSetup | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as TableSetup;
+    if (
+      !parsed ||
+      typeof parsed.playerCount !== "number" ||
+      parsed.playerCount < MIN_PLAYERS ||
+      parsed.playerCount > MAX_PLAYERS ||
+      !Array.isArray(parsed.names) ||
+      parsed.names.length !== parsed.playerCount
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}

@@ -1,26 +1,378 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Bhabhi — design tokens
+   A warm desi card-table palette: deep felt green, cream cards,
+   brass/gold accents. Deliberately not casino neon.
+   ============================================================ */
+@theme {
+  --color-felt-950: #062019;
+  --color-felt-900: #0a3228;
+  --color-felt-800: #0e4535;
+  --color-felt-700: #135843;
+  --color-felt-600: #1a6e55;
+
+  --color-ink-950: #070d0b;
+  --color-ink-900: #0d1614;
+  --color-ink-800: #16241f;
+  --color-ink-700: #23372f;
+
+  --color-cream-50: #fdfbf4;
+  --color-cream-100: #f7f1e2;
+  --color-cream-200: #ece2c9;
+  --color-cream-400: #c9b98f;
+
+  --color-brass-200: #f0d9a3;
+  --color-brass-300: #e5c179;
+  --color-brass-400: #d4a54a;
+  --color-brass-500: #b8862f;
+  --color-brass-600: #94681f;
+
+  --color-chili-400: #e2574c;
+  --color-chili-500: #cf3f34;
+  --color-mint-300: #6fd8ac;
+  --color-mint-400: #35bd88;
+
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --ease-card: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-snap: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  /* Card size scales with the viewport so the same markup works from a
+     small phone to a large monitor without a second layout. */
+  --card-w: clamp(2.7rem, 12.5vw, 4.6rem);
+  --card-h: calc(var(--card-w) * 1.42);
+  --card-radius: clamp(0.3rem, 1.4vw, 0.55rem);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@media (min-width: 768px) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --card-w: clamp(3.4rem, 6vw, 5rem);
   }
 }
 
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(120% 80% at 50% -10%, #124534 0%, transparent 55%),
+    radial-gradient(90% 60% at 50% 110%, #0b2b22 0%, transparent 60%),
+    var(--color-ink-950);
+  color: var(--color-cream-100);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  /* Card taps shouldn't trigger double-tap zoom or a blue flash. */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+}
+
+/* ============================================================
+   Felt table surface
+   ============================================================ */
+@layer components {
+  .felt {
+    background:
+      radial-gradient(ellipse 75% 55% at 50% 45%, var(--color-felt-700) 0%, var(--color-felt-900) 62%, var(--color-felt-950) 100%);
+    position: relative;
+    isolation: isolate;
+  }
+
+  /* Woven fabric grain — two fine cross-hatched gradients, cheap to paint. */
+  .felt::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+    background-image:
+      repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 4px),
+      repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 4px);
+  }
+
+  .brass-rule {
+    background: linear-gradient(90deg, transparent, var(--color-brass-400), transparent);
+    height: 1px;
+  }
+
+  /* ============================================================
+     Playing cards
+     ============================================================ */
+  .card-shell {
+    width: var(--card-w);
+    height: var(--card-h);
+    border-radius: var(--card-radius);
+    position: relative;
+    flex: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .card-face {
+    background: linear-gradient(160deg, var(--color-cream-50) 0%, var(--color-cream-100) 55%, var(--color-cream-200) 100%);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.35),
+      0 6px 14px -6px rgba(0, 0, 0, 0.55),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+      inset 0 0 0 2px rgba(0, 0, 0, 0.07);
+  }
+
+  /* Faint paper tooth so the cream doesn't read as flat plastic. */
+  .card-face::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.5;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(120, 100, 60, 0.05) 0 1px, transparent 1px 3px);
+  }
+
+  .card-back {
+    background:
+      repeating-linear-gradient(45deg, rgba(240, 217, 163, 0.13) 0 3px, transparent 3px 7px),
+      repeating-linear-gradient(-45deg, rgba(240, 217, 163, 0.13) 0 3px, transparent 3px 7px),
+      radial-gradient(circle at 50% 50%, var(--color-felt-600) 0%, var(--color-felt-800) 70%, var(--color-felt-900) 100%);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 6px 14px -6px rgba(0, 0, 0, 0.6),
+      inset 0 0 0 1px rgba(240, 217, 163, 0.32),
+      inset 0 0 0 3px rgba(10, 50, 40, 0.85),
+      inset 0 0 0 4px rgba(240, 217, 163, 0.18);
+  }
+}
+
+/* ============================================================
+   Motion
+   ============================================================ */
+@keyframes deal-in {
+  from {
+    opacity: 0;
+    transform: translate(var(--deal-from-x, 0), var(--deal-from-y, -240px)) rotate(var(--deal-from-rot, -25deg)) scale(0.75);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) rotate(var(--seat-rot, 0deg)) scale(1);
+  }
+}
+
+@keyframes play-to-center {
+  from {
+    opacity: 0;
+    transform: translate(var(--from-x, 0), var(--from-y, 60px)) rotate(0deg) scale(0.85);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) rotate(var(--land-rot, 0deg)) scale(1);
+  }
+}
+
+@keyframes sweep-away {
+  to {
+    opacity: 0;
+    transform: translate(var(--sweep-x, 0), var(--sweep-y, -120px)) rotate(var(--sweep-rot, 18deg)) scale(0.7);
+  }
+}
+
+@keyframes card-shake {
+  0%, 100% { transform: translateX(0) rotate(var(--seat-rot, 0deg)); }
+  15% { transform: translateX(-7px) rotate(calc(var(--seat-rot, 0deg) - 4deg)); }
+  30% { transform: translateX(6px) rotate(calc(var(--seat-rot, 0deg) + 4deg)); }
+  45% { transform: translateX(-5px) rotate(calc(var(--seat-rot, 0deg) - 3deg)); }
+  60% { transform: translateX(4px) rotate(calc(var(--seat-rot, 0deg) + 2deg)); }
+  80% { transform: translateX(-2px) rotate(var(--seat-rot, 0deg)); }
+}
+
+@keyframes turn-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(111, 216, 172, 0.55), 0 0 22px -6px rgba(111, 216, 172, 0.5); }
+  50% { box-shadow: 0 0 0 7px rgba(111, 216, 172, 0), 0 0 30px -4px rgba(111, 216, 172, 0.75); }
+}
+
+@keyframes think-dots {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+
+@keyframes rise-fade {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes badge-pop {
+  0% { opacity: 0; transform: scale(0.6) rotate(-8deg); }
+  60% { opacity: 1; transform: scale(1.12) rotate(3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes confetti-fall {
+  from { opacity: 1; transform: translateY(-12vh) rotate(0deg); }
+  to { opacity: 0; transform: translateY(105vh) rotate(720deg); }
+}
+
+@keyframes shuffle-riffle {
+  0% { transform: translate(var(--sx, 0), 0) rotate(0deg); }
+  25% { transform: translate(calc(var(--sx, 0) * 3.2), -14px) rotate(var(--srot, 10deg)); }
+  50% { transform: translate(calc(var(--sx, 0) * -2.4), 8px) rotate(calc(var(--srot, 10deg) * -1)); }
+  75% { transform: translate(calc(var(--sx, 0) * 1.6), -5px) rotate(calc(var(--srot, 10deg) * 0.4)); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+@keyframes deck-cut {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  40% { transform: translateY(-16px) rotate(-6deg); }
+  70% { transform: translateY(6px) rotate(3deg); }
+}
+
+@keyframes fan-out {
+  from { transform: translateX(0) rotate(0deg); }
+  to { transform: translateX(var(--fan-x, 0)) rotate(var(--fan-rot, 0deg)); }
+}
+
+.anim-deal { animation: deal-in 420ms var(--ease-card) backwards; }
+.anim-play { animation: play-to-center 340ms var(--ease-card) backwards; }
+.anim-sweep { animation: sweep-away 420ms var(--ease-card) forwards; }
+.anim-shake { animation: card-shake 420ms ease-in-out; }
+.anim-turn { animation: turn-pulse 1.9s ease-in-out infinite; }
+.anim-rise { animation: rise-fade 300ms var(--ease-card) backwards; }
+.anim-pop { animation: badge-pop 460ms var(--ease-snap) backwards; }
+.anim-riffle { animation: shuffle-riffle 620ms ease-in-out infinite; }
+.anim-cut { animation: deck-cut 700ms var(--ease-card); }
+.anim-fan { animation: fan-out 480ms var(--ease-card) forwards; }
+
+.think-dot { animation: think-dots 1.25s ease-in-out infinite; }
+.think-dot:nth-child(2) { animation-delay: 0.16s; }
+.think-dot:nth-child(3) { animation-delay: 0.32s; }
+
+/* Respect the OS setting. Animations here are explanatory, not decorative,
+   so we collapse them to near-instant rather than removing the transition
+   entirely — the card still visibly moves to where it went. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.08ms !important;
+  }
+}
+
+/* Same collapse, but user-controlled from the settings screen. */
+[data-motion="off"] *,
+[data-motion="off"] *::before,
+[data-motion="off"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.08ms !important;
+}
+
+/* ============================================================
+   Controls
+   ============================================================ */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    /* 44px floor — the practical minimum for a reliable thumb tap. */
+    min-height: 2.75rem;
+    padding: 0.625rem 1.15rem;
+    border-radius: 0.85rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: transform 140ms var(--ease-snap), background-color 160ms, border-color 160ms, opacity 160ms;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .btn:active:not(:disabled) { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .btn-primary {
+    background: linear-gradient(180deg, var(--color-brass-300), var(--color-brass-500));
+    color: #2a1b03;
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: 0 8px 22px -10px rgba(212, 165, 74, 0.9);
+  }
+  .btn-primary:hover:not(:disabled) { background: linear-gradient(180deg, var(--color-brass-200), var(--color-brass-400)); }
+
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-cream-100);
+    border-color: rgba(240, 217, 163, 0.22);
+  }
+  .btn-secondary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.11); }
+
+  .btn-ghost { background: transparent; color: var(--color-cream-400); }
+  .btn-ghost:hover:not(:disabled) { color: var(--color-cream-100); background: rgba(255, 255, 255, 0.05); }
+
+  .panel {
+    background: linear-gradient(180deg, rgba(22, 36, 31, 0.92), rgba(13, 22, 20, 0.92));
+    border: 1px solid rgba(240, 217, 163, 0.14);
+    border-radius: 1.15rem;
+    box-shadow: 0 24px 50px -28px rgba(0, 0, 0, 0.95);
+  }
+
+  .field {
+    width: 100%;
+    min-height: 2.75rem;
+    border-radius: 0.75rem;
+    background: rgba(7, 13, 11, 0.65);
+    border: 1px solid rgba(240, 217, 163, 0.18);
+    padding: 0.6rem 0.85rem;
+    color: var(--color-cream-50);
+    font-size: 1rem; /* 16px stops iOS Safari zooming the page on focus */
+    transition: border-color 160ms, box-shadow 160ms;
+  }
+  .field::placeholder { color: rgba(201, 185, 143, 0.45); }
+  .field:focus {
+    outline: none;
+    border-color: var(--color-brass-400);
+    box-shadow: 0 0 0 3px rgba(212, 165, 74, 0.18);
+  }
+
+  /* One visible focus treatment everywhere, keyboard-only. */
+  :focus-visible {
+    outline: 2px solid var(--color-brass-300);
+    outline-offset: 2px;
+    border-radius: 0.4rem;
+  }
+
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
+}
+
+/* Seats sit in a wrapped row on phones and on an ellipse from md up, where
+   there's room for a real table. The coordinates ride in as inline custom
+   properties, so one component serves both layouts. */
+.seat-ring { position: relative; }
+@media (min-width: 768px) {
+  /* A bounded oval rather than "whatever height is left", so the table
+     reads as a table instead of stretching to fill a tall monitor. */
+  .seat-ring {
+    height: min(56vh, 30rem);
+    min-height: 20rem;
+    max-width: 72rem;
+    margin-inline: auto;
+    width: 100%;
+  }
+  .seat-slot {
+    position: absolute;
+    left: var(--seat-x);
+    top: var(--seat-y);
+    transform: translate(-50%, -50%);
+  }
 }

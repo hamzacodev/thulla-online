@@ -1,29 +1,42 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getAuthedUser } from "@/lib/authHelpers";
-import { GameState } from "@/lib/types";
-import { applyPlay } from "@/lib/gameLogic";
+import { applyPlay } from "@/lib/engine/rules";
+import { loadRoom, markTrickEnd, maybeResolveTrick, recordRoomResults, saveRoom } from "@/lib/roomFlow";
 
 export async function POST(req: Request) {
   const user = await getAuthedUser(req);
   if (!user) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
 
   const { code, card } = await req.json();
-  if (!code || !card) return NextResponse.json({ error: "Missing code or card." }, { status: 400 });
+  if (!code || !card) return NextResponse.json({ error: "Missing room code or card." }, { status: 400 });
   const roomCode = String(code).trim().toUpperCase();
 
-  const { data, error } = await supabaseAdmin.from("rooms").select("state").eq("code", roomCode).single();
-  if (error || !data) return NextResponse.json({ error: "Room not found." }, { status: 404 });
+  const state = await loadRoom(roomCode);
+  if (!state) return NextResponse.json({ error: "No room with that code." }, { status: 404 });
 
-  const state = data.state as GameState;
-  const player = state.players.find((p) => p.id === user.id);
-  if (!player) return NextResponse.json({ error: "You are not in this room." }, { status: 403 });
+  const seat = state.seats.find((s) => s.id === user.id);
+  if (!seat) return NextResponse.json({ error: "You're not in this room." }, { status: 403 });
+  if (!state.game) return NextResponse.json({ error: "The game hasn't started yet." }, { status: 400 });
 
-  const result = applyPlay(state, player.seat, card);
+  // If the previous trick's display window has passed, clear it first — that
+  // way a room can never wedge on an unresolved trick, whatever the clients
+  // did or didn't do.
+  maybeResolveTrick(state);
+
+  const result = applyPlay(state.game, seat.seat, String(card));
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  const { error: updateError } = await supabaseAdmin.from("rooms").update({ state: result.state }).eq("code", roomCode);
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+  state.game = result.state;
+  markTrickEnd(state);
+  state.updatedAt = Date.now();
 
+  if (state.game.phase === "finished") {
+    state.status = "finished";
+    await recordRoomResults(state);
+  }
+
+  if (!(await saveRoom(roomCode, state))) {
+    return NextResponse.json({ error: "Couldn't save that move. Try again." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { AppHeader } from "@/components/AppHeader";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -23,14 +26,26 @@ export default function LoginPage() {
   }
 
   async function handleSignUp() {
+    if (!name.trim()) return setError("What should we call you?");
+    if (password.length < 6) return setError("Password needs at least 6 characters.");
     setBusy(true);
     setError("");
     setNotice("");
-    const { data, error } = await supabase.auth.signUp({ email, password });
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { display_name: name.trim() },
+        // Send the confirmation link back to wherever they actually signed
+        // up from, instead of Supabase's default Site URL.
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
+    });
     setBusy(false);
     if (error) return setError(error.message);
+
     if (data.session) {
-      // email confirmation is off — straight in
       router.push("/username");
     } else {
       setNotice("Check your email for a confirmation link, then come back and sign in.");
@@ -39,61 +54,112 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 px-4">
-      <div className="w-full max-w-sm bg-slate-900 rounded-2xl p-6 shadow-xl border border-slate-800">
-        <h1 className="text-2xl font-bold text-center mb-1">Thulla</h1>
-        <p className="text-slate-400 text-center text-sm mb-6">Sign in to play with friends</p>
+    <main className="flex min-h-dvh flex-col">
+      <AppHeader title={mode === "signin" ? "Sign in" : "Create account"} />
 
-        <div className="flex mb-5 rounded-lg overflow-hidden border border-slate-700">
+      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-4 pb-16">
+        <div className="panel p-6">
+          <h2 className="font-display text-center text-2xl font-bold text-cream-50">Bhabhi</h2>
+          <p className="mt-1 text-center text-sm text-cream-400">
+            {mode === "signin" ? "Welcome back — chalo khelein!" : "Sign up to play with friends"}
+          </p>
+
+          <div className="mt-5 grid grid-cols-2 gap-1.5 rounded-xl bg-white/[0.04] p-1.5">
+            {(["signin", "signup"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => {
+                  setMode(m);
+                  setError("");
+                }}
+                aria-pressed={mode === m}
+                className={`btn !min-h-10 !text-sm ${mode === m ? "btn-primary" : "btn-ghost"}`}
+              >
+                {m === "signin" ? "Sign in" : "Sign up"}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {mode === "signup" && (
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-cream-400">Your name</span>
+                <input
+                  className="field"
+                  value={name}
+                  maxLength={40}
+                  autoComplete="name"
+                  placeholder="Hamza"
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </label>
+            )}
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-cream-400">Email</span>
+              <input
+                type="email"
+                className="field"
+                value={email}
+                autoComplete="email"
+                autoCapitalize="none"
+                placeholder="you@example.com"
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-cream-400">Password</span>
+              <input
+                type="password"
+                className="field"
+                value={password}
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                placeholder="At least 6 characters"
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+          </div>
+
+          {error && (
+            <p className="mt-3 rounded-lg bg-chili-500/15 px-3 py-2 text-sm text-chili-400" role="alert">
+              {error}
+            </p>
+          )}
+          {notice && (
+            <p className="mt-3 rounded-lg bg-mint-400/15 px-3 py-2 text-sm text-mint-300">{notice}</p>
+          )}
+
           <button
-            className={`flex-1 py-2 text-sm font-medium ${mode === "signin" ? "bg-emerald-600 text-white" : "bg-slate-800 text-slate-300"}`}
-            onClick={() => {
-              setMode("signin");
-              setError("");
-            }}
+            disabled={busy || !email || !password}
+            onClick={mode === "signin" ? handleSignIn : handleSignUp}
+            className="btn btn-primary mt-5 w-full"
           >
-            Sign in
+            {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
           </button>
-          <button
-            className={`flex-1 py-2 text-sm font-medium ${mode === "signup" ? "bg-emerald-600 text-white" : "bg-slate-800 text-slate-300"}`}
-            onClick={() => {
-              setMode("signup");
-              setError("");
-            }}
-          >
-            Sign up
-          </button>
+
+          {mode === "signin" && (
+            <Link
+              href="/forgot-password"
+              className="mt-3 block text-center text-xs text-cream-400 underline underline-offset-4 hover:text-cream-100"
+            >
+              Forgot your password?
+            </Link>
+          )}
         </div>
 
-        <label className="block text-sm text-slate-400 mb-1">Email</label>
-        <input
-          type="email"
-          className="w-full mb-4 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-slate-100 placeholder-slate-500"
-          placeholder="you@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <label className="block text-sm text-slate-400 mb-1">Password</label>
-        <input
-          type="password"
-          className="w-full mb-4 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-slate-100 placeholder-slate-500"
-          placeholder="At least 6 characters"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
-        {notice && <p className="text-emerald-400 text-sm mb-3">{notice}</p>}
-
-        <button
-          disabled={busy || !email || !password}
-          onClick={mode === "signin" ? handleSignIn : handleSignUp}
-          className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition"
-        >
-          {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
-        </button>
+        <Link href="/play?mode=cpu" className="btn btn-ghost mt-4 !text-xs">
+          Or play vs the computer — no account needed
+        </Link>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<main className="grid min-h-dvh place-items-center text-cream-400">Loading…</main>}>
+      <LoginForm />
+    </Suspense>
   );
 }

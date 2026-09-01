@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bhabhi 🃏
 
-## Getting Started
+A web version of the Pakistani card game **Bhabhi** (also called **Thulla**).
+2–8 players, against the computer or with friends. Mobile first.
 
-First, run the development server:
+**Play:** https://thulla-online.vercel.app
+
+## Running it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Needs a `.env.local` with:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Single-player works without any of that once the app is running — only
+online rooms and cross-device stats need Supabase.
 
-## Learn More
+## Tests
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run simulate      # 6,300 simulated games — rules, deals, no stuck games
+npm run ai-benchmark  # is "hard" actually harder than "easy"?
+npm run stats-test    # win rate, streaks, filters
+npx tsc --noEmit      # types
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## How the code is laid out
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Path | What's in it |
+| --- | --- |
+| `lib/engine/` | The rules. Pure TypeScript, no React, no network. |
+| `lib/useLocalGame.ts` | Runs a single-player game and paces the CPUs. |
+| `lib/gameHistory.ts` | Recording results and reading stats. |
+| `app/api/` | Online rooms. The server re-validates every move. |
+| `components/` | The table, cards, hand, and results screen. |
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [PROJECT_SPEC.md](PROJECT_SPEC.md) for the rules and the reasoning.

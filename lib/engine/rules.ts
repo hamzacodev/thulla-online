@@ -1,0 +1,336 @@
+import {
+  ACE_OF_SPADES,
+  Card,
+  Suit,
+  freshDeck,
+  makeRng,
+  rankValue,
+  shuffle,
+  sortHand,
+  suitName,
+  suitOf,
+} from "./cards";
+import type { EnginePlayer, GameConfig, GameState, PlayResult, PileEntry, TrickOutcome } from "./types";
+
+export const MIN_PLAYERS = 2;
+export const MAX_PLAYERS = 8;
+
+export function isValidPlayerCount(n: number): boolean {
+  return Number.isInteger(n) && n >= MIN_PLAYERS && n <= MAX_PLAYERS;
+}
+
+const clone = <T,>(v: T): T => structuredClone(v);
+
+/** Seats that still hold cards, in seat order. */
+export function activeSeats(state: GameState): number[] {
+  return state.players.filter((p) => p.hand.length > 0).map((p) => p.seat);
+}
+
+/** Walks clockwise from `from` to the next seat that still holds cards. */
+function nextActiveSeat(state: GameState, from: number): number | null {
+  const total = state.players.length;
+  for (let step = 1; step <= total; step++) {
+    const seat = (from + step) % total;
+    if (state.players[seat].hand.length > 0) return seat;
+  }
+  return state.players[from]?.hand.length ? from : null;
+}
+
+/** Clockwise turn order for a trick, starting at the leader. */
+function orderFrom(state: GameState, leader: number): number[] {
+  const total = state.players.length;
+  const order: number[] = [];
+  for (let step = 0; step < total; step++) {
+    const seat = (leader + step) % total;
+    if (state.players[seat].hand.length > 0) order.push(seat);
+  }
+  return order;
+}
+
+/** Highest card of the led suit currently on the table. */
+function highestOfLedSuit(pile: PileEntry[], led: Suit): PileEntry {
+  return pile
+    .filter((e) => suitOf(e.card) === led)
+    .reduce((best, e) => (rankValue(e.card) > rankValue(best.card) ? e : best));
+}
+
+/**
+ * A per-deal identifier. `randomUUID` where it exists (all current browsers
+ * on a secure origin, and Node); the fallback keeps plain-HTTP dev working.
+ */
+export function newGameId(): string {
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  return `g-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export interface CreateGameOptions {
+  players: Array<Pick<EnginePlayer, "id" | "name" | "kind">>;
+  config?: Partial<Omit<GameConfig, "playerCount">>;
+}
+
+/**
+ * Builds a dealt, ready-to-play game.
+ *
+ * The deck is dealt round-robin one card at a time, so with counts that don't
+ * divide 52 evenly (everything except 2 and 4) the earlier seats simply get
+ * one extra card — exactly what happens dealing by hand.
+ */
+export function createGame({ players, config }: CreateGameOptions): GameState {
+  if (!isValidPlayerCount(players.length)) {
+    throw new Error(`Player count must be between ${MIN_PLAYERS} and ${MAX_PLAYERS}.`);
+  }
+
+  const seed = config?.seed ?? Math.floor(Math.random() * 2 ** 31);
+  const rng = makeRng(seed);
+  const deck = shuffle(freshDeck(), rng);
+
+  const hands: Card[][] = players.map(() => []);
+  deck.forEach((card, i) => hands[i % players.length].push(card));
+
+  const enginePlayers: EnginePlayer[] = players.map((p, seat) => ({
+    seat,
+    id: p.id,
+    name: p.name,
+    kind: p.kind,
+    hand: sortHand(hands[seat]),
+    finishedRank: null,
+    connected: true,
+  }));
+
+  const mustLeadAceOfSpades = config?.mustLeadAceOfSpades ?? true;
+
+  // The Ace rule is load-bearing, not decoration: the starting seat is
+  // derived from who was actually dealt the A♠.
+  const aceSeat = enginePlayers.findIndex((p) => p.hand.includes(ACE_OF_SPADES));
+  const leaderSeat = aceSeat >= 0 ? aceSeat : 0;
+
+  const state: GameState = {
+    version: 3,
+    gameId: newGameId(),
+    config: {
+      playerCount: players.length,
+      mode: config?.mode ?? "cpu",
+      mustLeadAceOfSpades,
+      difficulty: config?.difficulty ?? "medium",
+      seed,
+    },
+    players: enginePlayers,
+    phase: "playing",
+    turnSeat: leaderSeat,
+    leaderSeat,
+    ledSuit: null,
+    pile: [],
+    trickOrder: [],
+    trickNumber: 1,
+    trickOutcome: null,
+    mustPlay: mustLeadAceOfSpades && aceSeat >= 0 ? ACE_OF_SPADES : null,
+    finishOrder: [],
+    bhabhiSeat: null,
+    startedAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+
+  state.trickOrder = orderFrom(state, leaderSeat);
+  return state;
+}
+
+/**
+ * Which cards `seat` may legally play right now. The UI dims everything else
+ * and refuses the tap, but this is also the server's authority — the same
+ * function decides both, so a hand-rolled request can't get around it.
+ */
+export function legalMoves(state: GameState, seat: number): Card[] {
+  if (state.phase !== "playing" || state.turnSeat !== seat) return [];
+  const player = state.players[seat];
+  if (!player || player.hand.length === 0) return [];
+
+  if (state.mustPlay && player.hand.includes(state.mustPlay)) return [state.mustPlay];
+
+  const led = state.ledSuit;
+  if (led === null) return [...player.hand];
+
+  const followers = player.hand.filter((c) => suitOf(c) === led);
+  return followers.length > 0 ? followers : [...player.hand];
+}
+
+export function isLegalMove(state: GameState, seat: number, card: Card): boolean {
+  return legalMoves(state, seat).includes(card);
+}
+
+/** Why a specific card was rejected, phrased for a player rather than a log. */
+export function rejectionReason(state: GameState, seat: number, card: Card): string | null {
+  if (isLegalMove(state, seat, card)) return null;
+  const player = state.players[seat];
+  if (state.phase !== "playing") return "Hold on — this trick isn't finished yet.";
+  if (state.turnSeat !== seat) return "Not your turn yet — thoda sabar!";
+  if (!player?.hand.includes(card)) return "That card isn't in your hand.";
+  if (state.mustPlay && player.hand.includes(state.mustPlay)) {
+    return "Ace of Spades starts the game — you have to lead it.";
+  }
+  if (state.ledSuit) {
+    return `Oye! ${suitName(state.ledSuit)} chal raha hai — you have to follow the suit.`;
+  }
+  return "You can't play that card right now.";
+}
+
+/**
+ * Plays one card. Ends the trick when it should, but does NOT clear the
+ * table — that's `resolveTrick`, so the UI gets a beat to show the result.
+ */
+export function applyPlay(stateIn: GameState, seat: number, card: Card): PlayResult {
+  if (stateIn.phase === "trickEnd") {
+    return { state: stateIn, error: "Hold on — this trick isn't finished yet." };
+  }
+  if (stateIn.phase !== "playing") {
+    return { state: stateIn, error: "The game isn't in progress." };
+  }
+  if (stateIn.turnSeat !== seat) {
+    return { state: stateIn, error: "It's not your turn." };
+  }
+  const check = rejectionReason(stateIn, seat, card);
+  if (check) return { state: stateIn, error: check };
+
+  const state = clone(stateIn);
+  const player = state.players[seat];
+
+  player.hand = player.hand.filter((c) => c !== card);
+  state.pile.push({ card, seat });
+  if (state.ledSuit === null) state.ledSuit = suitOf(card);
+  if (state.mustPlay === card) state.mustPlay = null;
+
+  const led = state.ledSuit;
+  const brokeSuit = suitOf(card) !== led;
+
+  if (brokeSuit) {
+    // The thulla. Trick stops dead here and the player sitting on the
+    // highest card of the led suit eats everything on the table — including
+    // the off-suit card that was just thrown at them.
+    const high = highestOfLedSuit(state.pile, led);
+    state.trickOutcome = {
+      kind: "pickup",
+      collectorSeat: high.seat,
+      highCard: high.card,
+      brokeBySeat: seat,
+      brokeWith: card,
+      cards: state.pile.map((e) => e.card),
+    };
+    state.phase = "trickEnd";
+  } else if (state.pile.length >= state.trickOrder.length) {
+    // Everyone still in the game followed suit. Highest takes it and the
+    // whole pile leaves play for good.
+    const high = highestOfLedSuit(state.pile, led);
+    state.trickOutcome = {
+      kind: "discard",
+      winnerSeat: high.seat,
+      highCard: high.card,
+      cards: state.pile.map((e) => e.card),
+    };
+    state.phase = "trickEnd";
+  } else {
+    const idx = state.trickOrder.indexOf(seat);
+    state.turnSeat = state.trickOrder[(idx + 1) % state.trickOrder.length];
+  }
+
+  state.updatedAt = Date.now();
+  return { state };
+}
+
+/**
+ * Applies the finished trick: discards or hands over the pile, records who
+ * got out, and opens the next trick (or ends the game).
+ */
+export function resolveTrick(stateIn: GameState): GameState {
+  if (stateIn.phase !== "trickEnd" || !stateIn.trickOutcome) return stateIn;
+
+  const state = clone(stateIn);
+  const outcome = state.trickOutcome as TrickOutcome;
+  let nextLeader: number;
+
+  if (outcome.kind === "pickup") {
+    const collector = state.players[outcome.collectorSeat];
+    collector.hand = sortHand([...collector.hand, ...outcome.cards]);
+    nextLeader = outcome.collectorSeat;
+  } else {
+    nextLeader = outcome.winnerSeat;
+  }
+
+  // Anyone who shed their last card this trick is out. Order them by when
+  // they played, so going out earlier gives the better placing. The trick
+  // winner is credited first — winning the final trick shouldn't punish you.
+  const wentOut = state.pile
+    .map((e) => e.seat)
+    .filter((s) => state.players[s].hand.length === 0 && state.players[s].finishedRank === null);
+
+  if (outcome.kind === "discard" && wentOut.includes(outcome.winnerSeat)) {
+    wentOut.splice(wentOut.indexOf(outcome.winnerSeat), 1);
+    wentOut.unshift(outcome.winnerSeat);
+  }
+  for (const s of wentOut) {
+    state.players[s].finishedRank = state.finishOrder.length;
+    state.finishOrder.push(s);
+  }
+
+  state.pile = [];
+  state.ledSuit = null;
+  state.trickNumber += 1;
+
+  const remaining = activeSeats(state);
+
+  if (remaining.length <= 1) {
+    state.phase = "finished";
+    if (remaining.length === 1) {
+      state.bhabhiSeat = remaining[0];
+      state.players[remaining[0]].finishedRank = state.finishOrder.length;
+      state.finishOrder.push(remaining[0]);
+    } else {
+      // Everyone emptied out on the same trick. The last one to shed is
+      // the Bhabhi, so there is always exactly one.
+      state.bhabhiSeat = state.finishOrder.length ? state.finishOrder[state.finishOrder.length - 1] : null;
+    }
+    state.turnSeat = -1;
+    state.updatedAt = Date.now();
+    return state;
+  }
+
+  const leader = state.players[nextLeader].hand.length > 0 ? nextLeader : nextActiveSeat(state, nextLeader)!;
+  state.leaderSeat = leader;
+  state.turnSeat = leader;
+  state.trickOrder = orderFrom(state, leader);
+  state.phase = "playing";
+  state.updatedAt = Date.now();
+  return state;
+}
+
+/** Final placings, best first. Index 0 won; the last entry is the Bhabhi. */
+export function standings(state: GameState): EnginePlayer[] {
+  const ranked = state.finishOrder.map((seat) => state.players[seat]);
+  const rest = state.players.filter((p) => p.finishedRank === null);
+  return [...ranked, ...rest];
+}
+
+/** Guard against a state that has drifted — used by tests and the API. */
+export function auditState(state: GameState): string[] {
+  const problems: string[] = [];
+  const seen = new Map<Card, number>();
+  const count = (c: Card) => seen.set(c, (seen.get(c) ?? 0) + 1);
+
+  for (const p of state.players) p.hand.forEach(count);
+  state.pile.forEach((e) => count(e.card));
+
+  // Discarded cards legitimately leave play, so we only assert that nothing
+  // is duplicated or invented — not that all 52 are still accounted for.
+  for (const [card, n] of seen) {
+    if (n > 1) problems.push(`Card ${card} appears ${n} times`);
+    if (!freshDeck().includes(card)) problems.push(`Card ${card} is not a real card`);
+  }
+  if (state.phase === "playing") {
+    if (!state.trickOrder.includes(state.turnSeat)) {
+      problems.push(`turnSeat ${state.turnSeat} is not in the trick order`);
+    }
+    if (state.players[state.turnSeat]?.hand.length === 0) {
+      problems.push(`turnSeat ${state.turnSeat} has no cards`);
+    }
+  }
+  return problems;
+}

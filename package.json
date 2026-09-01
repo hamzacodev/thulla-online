@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "simulate": "tsc scripts/simulate.ts lib/engine/*.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/simulate.js",
+    "ai-benchmark": "tsc scripts/ai-benchmark.ts lib/engine/*.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/ai-benchmark.js",
+    "stats-test": "tsc scripts/stats-test.ts lib/statsMath.ts lib/engine/types.ts lib/engine/cards.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/stats-test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

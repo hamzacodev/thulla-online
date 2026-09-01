@@ -1,78 +1,94 @@
-# Thulla Online — Build Spec
+# Bhabhi (Thulla) Online — Spec
 
-## What to build
-A real-time multiplayer Thulla (Pakistani/Indian card game) web app. Friends play together from different cities or countries, for free, live at:
+A web version of the Pakistani card game **Bhabhi**, also called **Thulla**.
+Play against the computer on your own, or with friends anywhere. Free.
 
-`hamzashakoor.com/thulla123-321thulla`
+Live: https://thulla-online.vercel.app
 
 ## Stack
-- Next.js (App Router, TypeScript) — already scaffolded
-- Supabase — free tier: Postgres + Auth (email) + Realtime
-- Vercel — free Hobby tier hosting, deployed as its **own** project
-- No dedicated game server. Supabase Realtime pushes live game state to every player in a room.
-
-## Repositories
-- **Portfolio (existing, live):** `github.com/hamzacodev/portfolio` — hosted on Vercel, this is the site `hamzashakoor.com` points at. Gets touched for exactly one small change (see Routing below).
-- **Thulla (new):** suggested name `github.com/hamzacodev/thulla-online` — doesn't exist yet, gets created during setup, deployed as its own separate Vercel project.
-- Supabase is connected to GitHub on Hamza's account already. Once the Thulla repo exists, it can optionally be linked under Supabase → Project Settings → Integrations → GitHub for automatic migration syncing on push. Not required — running the SQL file manually in the SQL Editor works fine without it.
-
-## Deployment / routing — no DNS work needed
-Thulla deploys as its own separate Vercel project with its own auto-generated `*.vercel.app` URL, fully decoupled from the portfolio codebase.
-
-To make it reachable at `hamzashakoor.com/thulla123-321thulla`, add **one rewrite rule** to `github.com/hamzacodev/portfolio`'s `vercel.json` (create the file if it doesn't exist):
-
-```json
-{
-  "rewrites": [
-    { "source": "/thulla123-321thulla/:path*", "destination": "https://<thulla-vercel-url>/:path*" }
-  ]
-}
-```
-
-Replace `<thulla-vercel-url>` with the real Vercel URL once Thulla is deployed (step 5 in the setup order below). Redeploy the portfolio project after adding this. No subdomain, no Namecheap change — the two apps stay separate repos; the portfolio just proxies that one path.
-
-## Setup order (see CLAUDE_CHROME_SETUP.md for the full runbook)
-1. Run `supabase-schema.sql` in Supabase — *(parallel with 2)*
-2. Push the `thulla-online` code to the new GitHub repo — *(parallel with 1)*
-3. Import that repo into Vercel as a new project — needs 2
-4. Connect Supabase env vars to that Vercel project — needs 1 and 3
-5. Deploy, get the live `*.vercel.app` URL — needs 4
-6. Add the rewrite rule to the portfolio's `vercel.json` with that URL — needs 5
-7. Redeploy the portfolio — needs 6
-8. Test end-to-end — needs everything
-
-Enabling email auth in Supabase settings can happen any time after the project is created — parallel with 2 through 5.
-
-## Accounts
-- Sign up with **email** (Supabase Auth — email + password)
-- After signup, the user picks a **username** (separate from email, unique, this is what other players see)
-- Returning users just log in — no re-entering a name each game
-
-## Rooms & players
-- Any logged-in user can create a room and gets a 5-character room code
-- Friends join from anywhere by entering that code
-- v1 ships the classic format: 4 players, 2 fixed teams of 2 (seats opposite each other are partners)
-- Player cap is a single config value (`max_players` on the room), not hardcoded through the game logic — so raising it later doesn't require a redesign
-- No limit on concurrent rooms
+- Next.js 16 (App Router, TypeScript) + Tailwind v4
+- Supabase — Postgres + Auth (email) + Realtime
+- Vercel — Hobby tier
+- No dedicated game server: single-player runs in the browser, and online
+  rooms sync through Supabase Realtime.
 
 ## Game rules (as implemented)
-- Standard 52-card deck, dealt evenly (13 each at 4 players)
-- Turn-based: must follow the led suit if you hold a card of it
-- Can't follow suit → "thulla": throw any card, then pick up the entire pile into your hand, and you lead the next trick
-- If everyone follows suit, the highest card of the led suit wins the trick, the pile is discarded, and the winner leads next
-- First team where both partners empty their hands wins
 
-## Data model
-Full detail in `supabase-schema.sql`. Summary:
-- `profiles` — one row per user: id, username, created_at (email lives in Supabase's built-in `auth.users`)
-- `rooms` — one row per game: code, host, max_players, JSON game state (players, hands, whose turn, pile, log)
+Standard 52-card deck, **2–8 players**, every card dealt out. With counts
+that don't divide 52 evenly, the earlier seats get one extra card — the same
+thing that happens dealing round a real table.
 
-## Out of scope for v1
-- Spectators
-- In-app chat or voice
-- Reconnect handling beyond "just refresh the page"
-- Strong anti-cheat — game state is broadcast to everyone in the room, so a technically savvy player could inspect it in dev tools. Fine for playing with friends.
+1. **The Ace of Spades starts.** Whoever is dealt it leads the first trick
+   and must lead the A♠ itself. This is derived from the deal, not a random
+   pick.
+2. **Follow suit if you can.** Play goes clockwise.
+3. **Everyone follows → highest card of the led suit wins the trick**, and
+   the whole pile is discarded from the game. The winner leads next.
+4. **Someone can't follow (the thulla) → the trick ends immediately**, and
+   the player holding the **highest card of the led suit** picks up the
+   entire pile. They lead next.
+5. Empty your hand and you are **out, safe**. Play continues without you.
+6. The last player still holding cards is the **Bhabhi**.
 
-## Open items to confirm
-- Whether email needs verification before first login, or a simpler flow is fine
-- Exact copy/wording on the sign-up screen
+There are no teams — it's every player for themselves.
+
+## Architecture
+
+Game rules live in `lib/engine/` and know nothing about React, the network,
+or the database:
+
+- `cards.ts` — deck, shuffling (seedable), rank/suit helpers
+- `types.ts` — `GameState` and friends
+- `rules.ts` — `createGame`, `legalMoves`, `applyPlay`, `resolveTrick`
+- `ai.ts` — CPU decision making at three difficulties
+
+Everything else renders that state or transports it:
+
+- `lib/useLocalGame.ts` — drives a single-player game (CPU turns, pacing)
+- `app/api/*` — online rooms; the server is the authority and re-validates
+  every move through the same `applyPlay`
+- `components/GameTable.tsx` — one table renderer for both modes
+
+`applyPlay` deliberately does not clear the table — it moves the game to a
+`trickEnd` phase and `resolveTrick` finishes the job. That gives the UI a
+place to show who won a trick or who is about to eat the pile, and it keeps
+online and offline timing identical.
+
+## Statistics
+
+Every **completed** game writes one row to `game_results`. Abandoned games
+write nothing, so they can't affect a record.
+
+- Idempotent on `(owner_id, game_id)` — refreshing the results screen, a
+  re-render, or a retry can never double-count.
+- Aggregates (totals, win rate, current and best streaks) are computed in
+  Postgres by `get_player_stats()`; the client never downloads a full
+  history to show one number.
+- Online results are written server-side from the room's own state. Browsers
+  have no insert policy on `game_results`, so a client cannot fabricate wins.
+- Single-player results are submitted by the client (the game runs there) but
+  are validated server-side for internal consistency before being stored.
+- Signed-out players get the same dashboard backed by `localStorage`.
+
+## Testing
+
+- `npm run simulate` — plays 6,300 CPU-vs-CPU games across every player
+  count and difficulty, asserting no stuck games, no illegal moves, a correct
+  Ace opener, 52 unique cards dealt, and exactly one Bhabhi.
+- `npm run ai-benchmark` — head-to-head difficulty comparison.
+- `npm run stats-test` — statistics and streak arithmetic.
+
+## Setup
+
+1. Run `supabase-schema.sql` in the Supabase SQL editor (safe to re-run).
+2. In Supabase → Authentication → URL Configuration, set **Site URL** to the
+   deployed URL and add both it and `http://localhost:3000/**` to **Redirect
+   URLs**, so confirmation and password-reset emails land in the right place.
+3. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
+   `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project.
+
+## Out of scope for now
+- Spectators, in-app chat
+- CPU players inside online rooms
+- Leaderboards and head-to-head records — the `players` JSON on every result
+  row already carries what these need, so they don't require a migration.

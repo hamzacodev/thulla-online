@@ -1,0 +1,43 @@
+import type { GameState } from "./engine/types";
+
+export type RoomStatus = "waiting" | "playing" | "finished";
+
+export interface RoomSeat {
+  /** Supabase auth user id. */
+  id: string;
+  name: string;
+  seat: number;
+  connected: boolean;
+}
+
+/**
+ * What's stored in `rooms.state`. The lobby and the game are kept separate:
+ * `game` is exactly the same engine state a single-player game uses, so one
+ * rule set and one renderer serve both modes.
+ */
+export interface RoomState {
+  version: 3;
+  code: string;
+  status: RoomStatus;
+  maxPlayers: number;
+  hostId: string;
+  seats: RoomSeat[];
+  game: GameState | null;
+  /**
+   * When a finished trick may be cleared. Clients show the completed pile
+   * until this passes, then any of them can call resolve-trick — and a
+   * later play-card resolves it anyway, so the room can't wedge if
+   * everybody closes their tab.
+   */
+  trickEndsAt: number | null;
+  /** Set once results have been written, so they're never written twice. */
+  resultsRecorded: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export const TRICK_LINGER_MS = 1800;
+
+export function isRoomState(value: unknown): value is RoomState {
+  return !!value && typeof value === "object" && (value as RoomState).version === 3;
+}
