@@ -111,10 +111,11 @@ export function useLocalGame(options: LocalGameOptions) {
       const raw = localStorage.getItem(SAVE_KEY);
       if (raw) {
         const saved = JSON.parse(raw) as Saved;
-        // Only resume a game that matches this table and is still running.
+        // Resume any game — including a finished one, whose results screen
+        // is what a refresh should land back on — as long as it's the same
+        // table. A different table comes through `start()` instead.
         if (
           saved?.state?.version === 3 &&
-          saved.state.phase !== "finished" &&
           saved.state.players.length === seats.length &&
           saved.state.players.every((p, i) => p.name === seats[i].name && p.kind === seats[i].kind)
         ) {
@@ -133,8 +134,10 @@ export function useLocalGame(options: LocalGameOptions) {
   useEffect(() => {
     if (!state) return;
     try {
-      if (state.phase === "finished") localStorage.removeItem(SAVE_KEY);
-      else localStorage.setItem(SAVE_KEY, JSON.stringify({ state, savedAt: Date.now() } satisfies Saved));
+      // Finished games are kept too, so refreshing on the results screen
+      // brings the results back rather than silently dealing a new game.
+      // Re-recording it is harmless — recording is keyed on gameId.
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ state, savedAt: Date.now() } satisfies Saved));
     } catch {
       /* storage full or unavailable — the game still plays, just won't resume */
     }

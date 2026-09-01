@@ -42,7 +42,22 @@ export async function POST(req: Request) {
   const { error } = await supabaseAdmin
     .from("rooms")
     .insert({ code, state, host_id: user.id, max_players: count });
+
   if (error) {
+    // 23514 is a check-constraint violation. The only one that can fire
+    // here is the old 4-8 player limit on a database that hasn't had
+    // supabase-schema.sql re-run — worth saying plainly rather than
+    // blaming the network.
+    if (error.code === "23514") {
+      return NextResponse.json(
+        {
+          error:
+            `${count}-player rooms need the latest database schema. ` +
+            "Run supabase-schema.sql in the Supabase SQL editor, or pick 4-8 players for now.",
+        },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { error: "Couldn't create that room. Try again in a moment." },
       { status: 500 }
