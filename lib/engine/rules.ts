@@ -129,6 +129,7 @@ export function createGame({ players, config }: CreateGameOptions): GameState {
     mustPlay: mustLeadAceOfSpades && aceSeat >= 0 ? ACE_OF_SPADES : null,
     finishOrder: [],
     thullaSeat: null,
+    voids: players.map(() => []),
     startedAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -204,6 +205,15 @@ export function applyPlay(stateIn: GameState, seat: number, card: Card): PlayRes
   const led = state.ledSuit;
   const brokeSuit = suitOf(card) !== led;
 
+  // Throwing off-suit proves this seat holds none of the led suit. Recorded
+  // even on the immune first trick — the pile isn't at stake there, but the
+  // information is just as true, and everyone at the table saw it.
+  if (brokeSuit && led !== null) {
+    if (!state.voids) state.voids = state.players.map(() => []);
+    const seen = state.voids[seat] ?? [];
+    if (!seen.includes(led)) state.voids[seat] = [...seen, led];
+  }
+
   // The opening trick is a free round: being void there costs nobody the
   // pile. Play continues and the trick is settled the ordinary way.
   // `?? true` so games saved before the rule existed still get it.
@@ -258,6 +268,15 @@ export function resolveTrick(stateIn: GameState): GameState {
     const collector = state.players[outcome.collectorSeat];
     collector.hand = sortHand([...collector.hand, ...outcome.cards]);
     nextLeader = outcome.collectorSeat;
+
+    // A void is only true until someone hands the suit back. Eating the pile
+    // does exactly that, so forget the voids this collector no longer has.
+    if (state.voids?.[outcome.collectorSeat]?.length) {
+      const gained = new Set(outcome.cards.map(suitOf));
+      state.voids[outcome.collectorSeat] = state.voids[outcome.collectorSeat].filter(
+        (suit) => !gained.has(suit)
+      );
+    }
   } else {
     nextLeader = outcome.winnerSeat;
   }

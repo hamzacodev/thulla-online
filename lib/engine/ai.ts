@@ -27,19 +27,28 @@ function isLastToPlay(state: GameState): boolean {
 }
 
 /**
- * Suits we have watched a given seat fail to follow. Once a player shows out
- * of a suit they are void in it for the rest of the game — nothing ever
- * returns cards to a hand except picking up a pile, so this only sharpens.
- * Only "hard" uses this.
+ * Suits we have watched each seat fail to follow.
+ *
+ * This used to be derived from `state.trickOutcome`, which only ever holds
+ * the trick that just ended — so the CPU forgot every void the moment the
+ * next trick began, and would cheerfully lead the same suit into the same
+ * void player again and again. The engine keeps the running record now.
+ * The old one-trick derivation survives as a fallback for games saved
+ * before `state.voids` existed.
  */
 function knownVoids(state: GameState): Map<number, Set<Suit>> {
   const voids = new Map<number, Set<Suit>>();
+
+  if (state.voids) {
+    state.voids.forEach((suits, seat) => {
+      if (suits && suits.length) voids.set(seat, new Set(suits));
+    });
+    return voids;
+  }
+
   const outcome = state.trickOutcome;
   if (outcome?.kind === "pickup") {
-    const led = suitOf(outcome.highCard);
-    const set = voids.get(outcome.brokeBySeat) ?? new Set<Suit>();
-    set.add(led);
-    voids.set(outcome.brokeBySeat, set);
+    voids.set(outcome.brokeBySeat, new Set([suitOf(outcome.highCard)]));
   }
   return voids;
 }
@@ -54,8 +63,12 @@ function chooseLead(state: GameState, hand: Card[], difficulty: Difficulty, rng:
     bySuit.set(s, [...(bySuit.get(s) ?? []), c]);
   }
 
-  const opponentsVoid = difficulty === "hard" ? knownVoids(state) : new Map<number, Set<Suit>>();
-  const othersActive = state.trickOrder.filter((s) => s !== state.turnSeat);
+  // Even "medium" refuses the outright blunder below; only "hard" prices the
+  // risk in properly.
+  const opponentsVoid = knownVoids(state);
+  const othersActive = state.trickOrder.filter(
+    (s) => s !== state.turnSeat && state.players[s]?.hand.length > 0
+  );
 
   let best: { card: Card; score: number } | null = null;
   for (const [suit, cards] of bySuit) {
@@ -66,11 +79,20 @@ function chooseLead(state: GameState, hand: Card[], difficulty: Difficulty, rng:
     // A long suit is worth leading — more chances to shed it later.
     score += cards.length * 3;
 
-    if (difficulty === "hard") {
-      // If a player is known void here, leading it invites them to dump on
-      // whoever ends up high. Discount it unless our card is genuinely low.
-      const voidCount = othersActive.filter((s) => opponentsVoid.get(s)?.has(suit)).length;
-      score -= voidCount * 18;
+    const voidHere = othersActive.filter((s) => opponentsVoid.get(s)?.has(suit));
+
+    // Everyone still in the game is void here. Whatever we lead is then the
+    // only card of the suit on the table, so we are top of it by definition
+    // and the whole pile comes straight back to us. Leading into that is
+    // never right, at any difficulty — it is the loop that made the CPU look
+    // like it wasn't paying attention.
+    if (othersActive.length > 0 && voidHere.length === othersActive.length) {
+      score -= 250;
+    } else if (difficulty === "hard") {
+      // Otherwise price it: a void player ends the trick the moment they
+      // play, and the highest card of the led suit eats the pile. Leading
+      // our 3 into a void is cheap; leading our King is asking for it.
+      score -= voidHere.length * (6 + rankValue(low) * 2);
       // Holding only high cards in a suit is a trap: we'd be forced to sit
       // on top of our own lead.
       if (rankValue(low) >= 9) score -= 15;

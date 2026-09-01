@@ -79,6 +79,17 @@ export interface GameState {
   finishOrder: number[];
   /** The last player still holding cards — the Thulla. Set when finished. */
   thullaSeat: number | null;
+  /**
+   * Suits each seat has been seen unable to follow, indexed by seat.
+   *
+   * Following suit is compulsory, so throwing off-suit *proves* a void —
+   * this is public information every player at a real table would remember,
+   * not hidden knowledge. It isn't permanent, though: picking up a pile can
+   * hand a suit back, and `resolveTrick` clears the voids it refills.
+   *
+   * Optional so games saved before it existed still load.
+   */
+  voids?: Suit[][];
   startedAt: number;
   updatedAt: number;
 }
