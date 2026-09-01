@@ -168,9 +168,14 @@ export default function RoomPage() {
     statsRefreshed.current = true;
     if (game.thullaSeat === mySeat) sfx.thulla();
     else sfx.win();
-    // Give the server's write a beat to land before re-reading.
-    const timer = setTimeout(() => refreshStats(), 700);
-    return () => clearTimeout(timer);
+
+    // The result row is written server-side before the room update that
+    // brought us here, so the first read is normally enough. "Normally"
+    // isn't good enough for the one screen people actually read their
+    // record on, and a single timeout that loses the race leaves a stale
+    // card with no way back. Read a few times and let it settle.
+    const timers = [400, 1500, 3500].map((ms) => window.setTimeout(() => refreshStats(), ms));
+    return () => timers.forEach(clearTimeout);
   }, [game?.phase, game?.thullaSeat, mySeat, refreshStats, game]);
 
   async function handleStart() {
