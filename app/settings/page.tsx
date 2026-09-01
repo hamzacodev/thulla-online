@@ -92,6 +92,16 @@ export default function SettingsPage() {
 
         <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
           <div>
+            <p className="text-sm font-semibold text-cream-100">🎙️ Voice chat</p>
+            <p className="mt-0.5 text-xs text-cream-400">
+              Talk to your friends in online rooms. You still choose when to join.
+            </p>
+          </div>
+          <Toggle label="Voice chat" on={settings.voice} onChange={(v) => update({ voice: v })} />
+        </div>
+
+        <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
+          <div>
             <p className="text-sm font-semibold text-cream-100">✨ Animations</p>
             <p className="mt-0.5 text-xs text-cream-400">Turn off for an instant, no-frills table.</p>
           </div>

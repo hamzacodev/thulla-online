@@ -1,17 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { GameTable } from "@/components/GameTable";
 import { GameOver } from "@/components/GameOver";
 import { Toast, type ToastMessage } from "@/components/Toast";
 import { ThullaToast } from "@/components/ThullaToast";
+import { VoiceChat } from "@/components/VoiceChat";
+import { Avatar } from "@/components/Avatar";
 import { useRoom } from "@/lib/useRoom";
 import { useAuth } from "@/lib/useAuth";
 import { useSettings } from "@/lib/settings";
 import { useStats } from "@/lib/useStats";
 import { useThulla } from "@/lib/useThulla";
+import { useVoice } from "@/lib/useVoice";
+import { useAvatars } from "@/lib/useAvatars";
 import { authedFetch } from "@/lib/apiClient";
 import { legalMoves } from "@/lib/engine/rules";
 import type { Card } from "@/lib/engine/cards";
@@ -49,6 +53,25 @@ export default function RoomPage() {
 
   const game = state?.game ?? null;
   const mySeat = state?.seats.find((s) => s.id === userId)?.seat ?? -1;
+  const myName = state?.seats.find((s) => s.id === userId)?.name ?? "You";
+
+  // Voice chat is offered to everyone holding a seat, and only to them —
+  // knowing the room code isn't enough to be dialled in.
+  const members = useMemo(
+    () => (state?.seats ?? []).map((s) => ({ id: s.id, name: s.name })),
+    [state?.seats]
+  );
+  const voice = useVoice({
+    code: code || null,
+    userId,
+    members,
+    available: settings.voice,
+  });
+  const showVoice = settings.voice && mySeat >= 0;
+
+  // Faces for everyone at the table, so a room of usernames is a room of
+  // people. Looked up by id, so it works for the lobby and the game alike.
+  const avatars = useAvatars(members.map((m) => m.id));
 
   // Same engine event, same one-per-trick guard, over realtime updates.
   const thulla = useThulla(game, mySeat);
@@ -182,14 +205,30 @@ export default function RoomPage() {
                       p ? "bg-white/[0.06]" : "border border-dashed border-white/15 bg-transparent"
                     }`}
                   >
-                    <span className={p ? "font-medium text-cream-50" : "text-cream-400/60"}>
-                      {p ? `🙂 ${p.name}` : "Waiting for a player…"}
-                    </span>
+                    {p ? (
+                      <span className="flex min-w-0 items-center gap-2 font-medium text-cream-50">
+                        <Avatar src={avatars[p.id]} name={p.name} size={22} />
+                        <span className="truncate">{p.name}</span>
+                      </span>
+                    ) : (
+                      <span className="text-cream-400/60">Waiting for a player…</span>
+                    )}
                     {p?.id === state.hostId && <span className="text-[0.65rem] text-brass-300">HOST</span>}
                   </div>
                 );
               })}
             </div>
+
+            {showVoice && (
+              <div className="mb-4">
+                <VoiceChat
+                  voice={voice}
+                  selfName={myName}
+                  avatars={avatars}
+                  selfAvatar={userId ? avatars[userId] : null}
+                />
+              </div>
+            )}
 
             {error && (
               <p className="mb-3 rounded-lg bg-chili-500/15 px-3 py-2 text-sm text-chili-400" role="alert">{error}</p>
@@ -222,12 +261,24 @@ export default function RoomPage() {
   if (game.phase === "finished") {
     return (
       <main className="felt flex min-h-dvh flex-col">
+        {showVoice && (
+          <div className="relative z-20 flex justify-end px-3 pt-[max(0.4rem,env(safe-area-inset-top))]">
+            <VoiceChat
+              voice={voice}
+              selfName={myName}
+              avatars={avatars}
+              selfAvatar={userId ? avatars[userId] : null}
+              variant="bar"
+            />
+          </div>
+        )}
         <GameOver
           state={game}
           viewSeat={mySeat}
           lang={lang}
           stats={statsLoading ? null : stats}
           statsAreLocal={isLocal}
+          avatars={avatars}
           onRematch={state.hostId === userId ? handleStart : undefined}
           onNewGame={() => router.push("/play?mode=friends")}
         />
@@ -244,10 +295,19 @@ export default function RoomPage() {
 
       <header className="relative z-20 flex shrink-0 items-center gap-2 px-2 pt-[max(0.4rem,env(safe-area-inset-top))] pb-1">
         <Link href="/" className="btn btn-ghost !min-h-9 !px-2 !text-xs" aria-label="Leave game">☰</Link>
-        <span className="font-display flex-1 text-base font-bold text-cream-50">Thulla</span>
-        <span className="tabular text-[0.7rem] text-cream-400">
+        <span className="font-display hidden flex-1 text-base font-bold text-cream-50 sm:block">Thulla</span>
+        <span className="tabular flex-1 text-[0.7rem] text-cream-400 sm:flex-none">
           Room {code} · Trick {game.trickNumber}
         </span>
+        {showVoice && (
+          <VoiceChat
+            voice={voice}
+            selfName={myName}
+            avatars={avatars}
+            selfAvatar={userId ? avatars[userId] : null}
+            variant="bar"
+          />
+        )}
       </header>
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
@@ -259,6 +319,7 @@ export default function RoomPage() {
           isMyTurn={isMyTurn}
           shakeCard={shakeCard}
           lang={lang}
+          avatars={avatars}
           onPlay={handlePlay}
         />
       </div>

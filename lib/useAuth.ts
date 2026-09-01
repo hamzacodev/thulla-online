@@ -9,6 +9,7 @@ export interface AuthState {
   email: string | null;
   username: string | null; // null until they've picked one
   displayName: string | null; // from sign-up; may be null for older accounts
+  avatarUrl: string | null; // profile picture, null until they upload one
   accessToken: string | null;
 }
 
@@ -18,6 +19,7 @@ const initial: AuthState = {
   email: null,
   username: null,
   displayName: null,
+  avatarUrl: null,
   accessToken: null,
 };
 
@@ -25,11 +27,19 @@ export function useAuth() {
   const [state, setState] = useState<AuthState>(initial);
 
   async function loadProfile(userId: string, email: string | undefined, accessToken: string) {
-    // `display_name` only exists once the schema migration has been run.
-    // Fall back to the original shape so an un-migrated project still signs
-    // people in rather than looking like a broken login.
-    let data: { username?: string | null; display_name?: string | null } | null = null;
-    const full = await supabase.from("profiles").select("username, display_name").eq("id", userId).single();
+    // `display_name` and `avatar_url` only exist once the schema migration
+    // has been run. Fall back to the original shape so an un-migrated
+    // project still signs people in rather than looking like a broken login.
+    let data: {
+      username?: string | null;
+      display_name?: string | null;
+      avatar_url?: string | null;
+    } | null = null;
+    const full = await supabase
+      .from("profiles")
+      .select("username, display_name, avatar_url")
+      .eq("id", userId)
+      .single();
     if (full.error) {
       const basic = await supabase.from("profiles").select("username").eq("id", userId).single();
       data = basic.data;
@@ -46,6 +56,7 @@ export function useAuth() {
       // for screens that just need something to call you.
       username: data?.username ?? null,
       displayName: data?.display_name ?? null,
+      avatarUrl: data?.avatar_url ?? null,
       accessToken,
     });
   }

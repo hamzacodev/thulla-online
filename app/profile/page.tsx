@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
+import { AvatarPicker } from "@/components/AvatarPicker";
 import { HistoryCard } from "@/components/HistoryCard";
 import { StatTile, StreakRow, WinRateBar, statsQuip } from "@/components/StatTiles";
 import { useAuth } from "@/lib/useAuth";
@@ -12,8 +14,15 @@ import { supabase } from "@/lib/supabaseClient";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { userId, username, displayName, email, loading: authLoading } = useAuth();
+  const { userId, username, displayName, email, avatarUrl, loading: authLoading } = useAuth();
   const { stats, recent, loading, isLocal, migrationMissing, error } = useStats(userId);
+
+  // A picture just uploaded should show at once rather than waiting for the
+  // auth profile to be read again, so a local override wins once it's set.
+  const [changed, setChanged] = useState<string | null | undefined>(undefined);
+  const avatar = changed === undefined ? avatarUrl : changed;
+
+  const displayed = username ?? displayName ?? "Player";
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -43,6 +52,12 @@ export default function ProfilePage() {
             {username ?? displayName ?? (userId ? "…" : "Guest player")}
           </p>
           {email && <p className="mt-0.5 truncate text-xs text-cream-400">{email}</p>}
+
+          {userId && (
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <AvatarPicker userId={userId} name={displayed} url={avatar} onChange={setChanged} />
+            </div>
+          )}
           {!userId && !authLoading && (
             <p className="mt-2 text-xs text-cream-400">
               Playing as a guest — your record is saved on this device only.{" "}

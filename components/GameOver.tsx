@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Avatar } from "./Avatar";
 import { standings } from "@/lib/engine/rules";
 import type { GameState } from "@/lib/engine/types";
 import { phrase, t, type Lang } from "@/lib/copy";
@@ -33,6 +34,8 @@ interface GameOverProps {
   /** Already includes this game — null while it's still being saved. */
   stats?: PlayerStats | null;
   statsAreLocal?: boolean;
+  /** Profile pictures by user id — online tables only. */
+  avatars?: Record<string, string>;
   onRematch?: () => void;
   onNewGame?: () => void;
 }
@@ -43,6 +46,7 @@ export function GameOver({
   lang,
   stats,
   statsAreLocal,
+  avatars,
   onRematch,
   onNewGame,
 }: GameOverProps) {
@@ -92,6 +96,11 @@ export function GameOver({
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="tabular w-5 shrink-0 text-cream-400">{i + 1}.</span>
+                  {p.kind === "cpu" ? (
+                    <span aria-hidden className="text-xs">🤖</span>
+                  ) : (
+                    <Avatar src={avatars?.[p.id]} name={p.name} size={20} />
+                  )}
                   <span className="truncate font-medium text-cream-50">{p.name}</span>
                   {p.seat === viewSeat && <span className="shrink-0 text-[0.65rem] text-brass-300">(you)</span>}
                 </span>

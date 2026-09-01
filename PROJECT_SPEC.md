@@ -47,6 +47,8 @@ or the database:
 Everything else renders that state or transports it:
 
 - `lib/useLocalGame.ts` — drives a single-player game (CPU turns, pacing)
+- `lib/useVoice.ts` — the WebRTC mesh behind voice chat
+- `lib/avatars.ts` — cropping and uploading a profile picture
 - `app/api/*` — online rooms; the server is the authority and re-validates
   every move through the same `applyPlay`
 - `components/GameTable.tsx` — one table renderer for both modes
@@ -55,6 +57,40 @@ Everything else renders that state or transports it:
 `trickEnd` phase and `resolveTrick` finishes the job. That gives the UI a
 place to show who won a trick or who is about to eat the pile, and it keeps
 online and offline timing identical.
+
+## Voice chat
+
+Online rooms can talk. Audio is peer-to-peer over WebRTC — the same bargain
+the rest of the app makes: there is no game server, so there is no media
+server either. Supabase Realtime carries only the signalling (offers,
+answers, ICE candidates) and a presence roster of who is on the call.
+
+- **A full mesh**, which is the right shape for 2–8 players: each browser
+  holds at most seven connections of one mono audio track, and nobody's
+  voice waits on a relay to be forwarded.
+- **One side offers, and it's always the same side** — the two user ids are
+  compared, so both browsers reach the same answer with no extra round trip
+  and no offer collision to resolve.
+- **Only seated players are dialled in.** Signals from anyone not holding a
+  seat are dropped, so knowing the room code isn't enough to listen in.
+- **Joining is always a tap.** The microphone is never opened on page load,
+  and it's released the moment you leave the call, the room, or the tab.
+- Mute your own mic, mute anyone else just for yourself, or turn the whole
+  feature off in Settings.
+- STUN alone connects on ordinary home and mobile networks. Behind a
+  symmetric NAT nothing but a relay will do, so `NEXT_PUBLIC_TURN_URL`
+  (with username and credential) adds one if you want it.
+
+## Profile pictures
+
+A face for every name at the table, so eight usernames read as eight
+people. Pictures are centre-cropped and re-encoded to a 256px JPEG **in the
+browser** before upload — a few kilobytes each instead of phone-camera
+originals, and being redrawn strips the EXIF (including any GPS tag) on the
+way. They go straight to Supabase Storage, into a folder named after the
+uploader, which is the only folder that key may write to. Without a picture
+a player gets their initials on a colour derived from their name, which is
+deterministic, so they look the same on everyone's screen.
 
 ## Statistics
 
@@ -88,10 +124,13 @@ write nothing, so they can't affect a record.
    deployed URL and add both it and `http://localhost:3000/**` to **Redirect
    URLs**, so confirmation and password-reset emails land in the right place.
 3. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
-   `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project.
+   `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project. `NEXT_PUBLIC_TURN_URL`,
+   `NEXT_PUBLIC_TURN_USERNAME` and `NEXT_PUBLIC_TURN_CREDENTIAL` are
+   optional, and only matter for voice chat on networks STUN can't punch
+   through.
 
 ## Out of scope for now
-- Spectators, in-app chat
+- Spectators, in-app text chat
 - CPU players inside online rooms
 - Leaderboards and head-to-head records — the `players` JSON on every result
   row already carries what these need, so they don't require a migration.

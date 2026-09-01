@@ -235,7 +235,53 @@ end
 $$;
 
 -- ------------------------------------------------------------
--- 6. Housekeeping — run occasionally, or wire to a scheduled job.
+-- 6. Avatars — a face to go with every name at the table.
+--    Pictures are cropped and re-encoded in the browser to a 256px
+--    square before they are uploaded, so this bucket holds a few KB
+--    per player, not phone-camera originals.
+-- ------------------------------------------------------------
+alter table profiles add column if not exists avatar_url text;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', true, 2097152, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+  set public = true,
+      file_size_limit = 2097152,
+      allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp'];
+
+-- Anyone can look at an avatar — they're shown to everyone at the table.
+drop policy if exists "Avatars are publicly readable" on storage.objects;
+create policy "Avatars are publicly readable"
+  on storage.objects for select using (bucket_id = 'avatars');
+
+-- You can only write inside a folder named after your own user id, so one
+-- player can never overwrite another player's face.
+drop policy if exists "Users upload their own avatar" on storage.objects;
+create policy "Users upload their own avatar"
+  on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "Users replace their own avatar" on storage.objects;
+create policy "Users replace their own avatar"
+  on storage.objects for update to authenticated
+  using (
+    bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text
+  )
+  with check (
+    bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "Users delete their own avatar" on storage.objects;
+create policy "Users delete their own avatar"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- ------------------------------------------------------------
+-- 7. Housekeeping — run occasionally, or wire to a scheduled job.
 --    Only rooms are disposable; game_results is the permanent record.
 -- ------------------------------------------------------------
 -- delete from rooms where created_at < now() - interval '24 hours';

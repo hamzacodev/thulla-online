@@ -1,7 +1,8 @@
 # Thulla 🃏
 
 A web version of the Pakistani card game **Thulla** (also called **Thulla**).
-2–8 players, against the computer or with friends. Mobile first.
+2–8 players, against the computer or with friends, with voice chat so you can
+talk while you play. Mobile first.
 
 **Play:** https://thulla-online.vercel.app
 
@@ -18,6 +19,11 @@ Needs a `.env.local` with:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+
+# Optional — only for voice chat on networks STUN can't punch through.
+NEXT_PUBLIC_TURN_URL=
+NEXT_PUBLIC_TURN_USERNAME=
+NEXT_PUBLIC_TURN_CREDENTIAL=
 ```
 
 Single-player works without any of that once the app is running — only
@@ -38,6 +44,8 @@ npx tsc --noEmit      # types
 | --- | --- |
 | `lib/engine/` | The rules. Pure TypeScript, no React, no network. |
 | `lib/useLocalGame.ts` | Runs a single-player game and paces the CPUs. |
+| `lib/useVoice.ts` | Voice chat — a WebRTC mesh, signalled over Realtime. |
+| `lib/avatars.ts` | Cropping and uploading a profile picture. |
 | `lib/gameHistory.ts` | Recording results and reading stats. |
 | `app/api/` | Online rooms. The server re-validates every move. |
 | `components/` | The table, cards, hand, and results screen. |

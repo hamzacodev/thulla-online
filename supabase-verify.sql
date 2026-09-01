@@ -14,6 +14,33 @@ with checks as (
          ) as ok
 
   union all
+  select 'profiles.avatar_url column',
+         exists (
+           select 1 from information_schema.columns
+           where table_schema = 'public' and table_name = 'profiles'
+             and column_name = 'avatar_url'
+         )
+
+  union all
+  select 'avatars storage bucket (public)',
+         exists (
+           select 1 from storage.buckets
+           where id = 'avatars' and public
+         )
+
+  union all
+  select 'avatars write policies (own folder only)',
+         (
+           select count(*) from pg_policies
+           where schemaname = 'storage' and tablename = 'objects'
+             and policyname in (
+               'Users upload their own avatar',
+               'Users replace their own avatar',
+               'Users delete their own avatar'
+             )
+         ) = 3
+
+  union all
   select 'game_results table',
          to_regclass('public.game_results') is not null
 

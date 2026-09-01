@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/useAuth";
 import { loadSetup, type TableSetup } from "@/lib/setup";
 import { buildRecordPayload, recordFinishedGame } from "@/lib/gameHistory";
 import { useStats } from "@/lib/useStats";
+import { useAvatars } from "@/lib/useAvatars";
 import { invalidCardMessage, phrase, t } from "@/lib/copy";
 import { sfx, setSoundEnabled, primeAudio } from "@/lib/sound";
 import { ACE_OF_SPADES, cardLabel, type Card } from "@/lib/engine/cards";
@@ -99,6 +100,14 @@ export default function LocalGamePage() {
   });
 
   const { state, stage, invalid, play, rematch, fastForward, humanSeat, legal, isHumanTurn } = game;
+
+  // Your own face at your own seat. The CPUs keep their 🤖.
+  const mine = useAvatars([userId]);
+  const avatars = useMemo(() => {
+    const seat = state?.players[humanSeat];
+    const url = userId ? mine[userId] : undefined;
+    return seat && url ? { [seat.id]: url } : undefined;
+  }, [state, humanSeat, userId, mine]);
 
   // Driven by the engine's own thulla event, not by anything the UI does.
   const thulla = useThulla(stage === "table" ? state : null, humanSeat);
@@ -217,6 +226,7 @@ export default function LocalGamePage() {
           lang={lang}
           stats={statsLoading ? null : stats}
           statsAreLocal={isLocal}
+          avatars={avatars}
           onRematch={handleRematch}
           onNewGame={() => router.push("/play?mode=cpu")}
         />
@@ -247,6 +257,7 @@ export default function LocalGamePage() {
           isMyTurn={isHumanTurn}
           shakeCard={invalid?.card ?? null}
           lang={lang}
+          avatars={avatars}
           onPlay={handlePlay}
           outAction={
             <button onClick={fastForward} className="btn btn-secondary !min-h-11 text-sm">

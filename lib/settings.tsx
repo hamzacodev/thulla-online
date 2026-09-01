@@ -10,6 +10,8 @@ export type Speed = "chill" | "normal" | "fast";
 export interface Settings {
   sound: boolean;
   animations: boolean;
+  /** Whether online rooms offer voice chat at all. Joining is still a tap. */
+  voice: boolean;
   lang: Lang;
   speed: Speed;
   difficulty: Difficulty;
@@ -18,6 +20,7 @@ export interface Settings {
 const DEFAULTS: Settings = {
   sound: true,
   animations: true,
+  voice: true,
   lang: "en",
   speed: "normal",
   difficulty: "medium",

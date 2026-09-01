@@ -1,5 +1,6 @@
 "use client";
 
+import { Avatar } from "./Avatar";
 import { CardStack } from "./PlayingCard";
 import type { EnginePlayer } from "@/lib/engine/types";
 
@@ -12,6 +13,8 @@ export function rankBadge(rank: number): string {
 
 interface SeatPodProps {
   player: EnginePlayer;
+  /** Their profile picture, if they've uploaded one. */
+  avatarUrl?: string | null;
   isTurn: boolean;
   isThinking: boolean;
   thinkingLabel: string;
@@ -35,6 +38,7 @@ interface SeatPodProps {
  */
 export function SeatPod({
   player,
+  avatarUrl,
   isTurn,
   isThinking,
   thinkingLabel,
@@ -78,7 +82,11 @@ export function SeatPod({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span aria-hidden className="text-xs">{player.kind === "cpu" ? "🤖" : "🙂"}</span>
+          {player.kind === "cpu" ? (
+            <span aria-hidden className="text-xs">🤖</span>
+          ) : (
+            <Avatar src={avatarUrl} name={player.name} size={dense ? 18 : 20} dim={isOut} />
+          )}
           <span className="truncate text-sm font-semibold text-cream-50">{player.name}</span>
         </div>
         {highlight === "won" ? (
