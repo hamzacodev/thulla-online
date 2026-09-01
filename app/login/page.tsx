@@ -43,12 +43,33 @@ function LoginForm() {
       },
     });
     setBusy(false);
-    if (error) return setError(error.message);
+    if (error) {
+      // Some projects surface this directly; most don't (see below).
+      if (/already registered|already exists/i.test(error.message)) {
+        setError("That email already has an account. Sign in instead — or reset your password.");
+        setMode("signin");
+        return;
+      }
+      return setError(error.message);
+    }
+
+    // Supabase deliberately does NOT error when you sign up with an address
+    // that already exists — it returns a decoy user with no identities and
+    // no session, so an attacker can't probe which emails are registered.
+    // Without this branch the screen says "check your email" for a mail that
+    // is never sent, which is exactly what it looks like when nothing works.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      setError("That email already has an account. Sign in instead — or reset your password.");
+      setMode("signin");
+      return;
+    }
 
     if (data.session) {
       router.push("/username");
     } else {
-      setNotice("Check your email for a confirmation link, then come back and sign in.");
+      setNotice(
+        "Check your email for a confirmation link — it can take a minute, and it sometimes lands in spam."
+      );
       setMode("signin");
     }
   }

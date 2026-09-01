@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
+import { authedFetch } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabaseClient";
 import { useSettings } from "@/lib/settings";
 import { t } from "@/lib/copy";
@@ -15,9 +17,30 @@ import { CardBack, PlayingCard } from "@/components/PlayingCard";
  */
 export default function Home() {
   const router = useRouter();
-  const { userId, username, loading } = useAuth();
+  const { userId, username, accessToken, loading } = useAuth();
   const { settings } = useSettings();
   const lang = settings.lang;
+
+  const [joinCode, setJoinCode] = useState("");
+  const [joinError, setJoinError] = useState("");
+  const [joining, setJoining] = useState(false);
+
+  /** Straight into a friend's table from the home screen. */
+  async function handleJoin(e: React.FormEvent) {
+    e.preventDefault();
+    const code = joinCode.trim().toUpperCase();
+    if (!code) return setJoinError("Enter the code your friend shared.");
+    // Joining needs an account — send them to sign in, then back here.
+    if (!userId) return router.push("/login");
+    if (!username) return router.push("/username");
+
+    setJoining(true);
+    setJoinError("");
+    const data = await authedFetch("/api/join-room", accessToken, { code });
+    setJoining(false);
+    if (data.error) return setJoinError(data.error);
+    router.push(`/room/${data.code}`);
+  }
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -66,6 +89,36 @@ export default function Home() {
             👥 {t("playFriends", lang)}
           </Link>
         </div>
+
+        {/* Join a friend's table without going through the setup screen. */}
+        <form onSubmit={handleJoin} className="mt-2.5 flex gap-2">
+          <input
+            className="field tabular text-center uppercase tracking-[0.3em]"
+            placeholder="ROOM CODE"
+            value={joinCode}
+            maxLength={5}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            aria-label="Room code to join"
+            onChange={(e) => {
+              setJoinCode(e.target.value.toUpperCase());
+              setJoinError("");
+            }}
+          />
+          <button
+            type="submit"
+            disabled={joining || joinCode.trim().length === 0}
+            className="btn btn-secondary shrink-0 !min-h-11"
+          >
+            {joining ? "…" : "Join table"}
+          </button>
+        </form>
+        {joinError && (
+          <p className="mt-1.5 text-center text-xs text-chili-400" role="alert">
+            {joinError}
+          </p>
+        )}
 
         <div className="mt-3 grid grid-cols-3 gap-2.5">
           <Link href="/how-to-play" className="btn btn-secondary !min-h-16 flex-col !gap-1 !px-2 text-xs">
