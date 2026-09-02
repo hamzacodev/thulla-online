@@ -29,12 +29,12 @@ const FILTERS: Array<{ id: HistoryFilter; label: string }> = [
   { id: "all", label: "All" },
   { id: "wins", label: "Wins" },
   { id: "losses", label: "Losses" },
-  { id: "thulla", label: "Thulla" },
+  { id: "thulla", label: "Last place" },
   { id: "cpu", label: "vs CPU" },
   { id: "friends", label: "Friends" },
 ];
 
-export function HistoryBrowser() {
+export function HistoryBrowser({ gameId = "thulla" }: { gameId?: string }) {
   const { userId, loading: authLoading } = useAuth();
   const [filter, setFilter] = useState<HistoryFilter>("all");
   const [sort, setSort] = useState<HistorySort>("newest");
@@ -58,13 +58,13 @@ export function HistoryBrowser() {
         let result;
         if (userId) {
           try {
-            result = await fetchRemoteHistory({ filter, sort, page: targetPage, pageSize: PAGE_SIZE });
+            result = await fetchRemoteHistory({ filter, sort, page: targetPage, pageSize: PAGE_SIZE, gameId });
           } catch (e) {
             if (!(e instanceof MigrationMissingError)) throw e;
-            result = pageLocalHistory(readLocalHistory(), filter, sort, targetPage, PAGE_SIZE);
+            result = pageLocalHistory(readLocalHistory(gameId), filter, sort, targetPage, PAGE_SIZE);
           }
         } else {
-          result = pageLocalHistory(readLocalHistory(), filter, sort, targetPage, PAGE_SIZE);
+          result = pageLocalHistory(readLocalHistory(gameId), filter, sort, targetPage, PAGE_SIZE);
         }
         setRecords((prev) => (append ? [...prev, ...result.records] : result.records));
         setHasMore(result.hasMore);
@@ -76,7 +76,7 @@ export function HistoryBrowser() {
         setLoadingMore(false);
       }
     },
-    [userId, filter, sort]
+    [userId, filter, sort, gameId]
   );
 
   useEffect(() => {
@@ -133,7 +133,7 @@ export function HistoryBrowser() {
             {filter === "all" && (
               <>
                 <p className="mt-1 text-sm text-cream-400">Chalo bhai, pehli game shuru karo 😎</p>
-                <Link href="/games/thulla/play?mode=cpu" className="btn btn-primary mt-4 w-full">
+                <Link href={`/games/${gameId}/play?mode=cpu`} className="btn btn-primary mt-4 w-full">
                   Play Your First Game
                 </Link>
               </>

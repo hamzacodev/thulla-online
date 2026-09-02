@@ -49,6 +49,30 @@ with checks as (
          ) = 3
 
   union all
+  select 'game_results.game column (per-game records)',
+         exists (
+           select 1 from information_schema.columns
+           where table_schema = 'public' and table_name = 'game_results'
+             and column_name = 'game'
+         )
+
+  union all
+  select 'game_results.details column (per-game extras)',
+         exists (
+           select 1 from information_schema.columns
+           where table_schema = 'public' and table_name = 'game_results'
+             and column_name = 'details'
+         )
+
+  union all
+  select 'get_game_stats() function (Bluff and Thulla kept apart)',
+         exists (
+           select 1 from pg_proc p
+           join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public' and p.proname = 'get_game_stats'
+         )
+
+  union all
   select 'room_messages table (table chat)',
          to_regclass('public.room_messages') is not null
 

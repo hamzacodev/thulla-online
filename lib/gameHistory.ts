@@ -81,6 +81,8 @@ export type RecordPayload = NonNullable<ReturnType<typeof buildRecordPayload>>;
 interface RemoteRow {
   id: string;
   game_id: string;
+  game?: string | null;
+  details?: Record<string, number> | null;
   mode: GameMode;
   player_count: number;
   cpu_difficulty: Difficulty | null;
@@ -99,6 +101,8 @@ function fromRow(r: RemoteRow): GameRecord {
   return {
     id: r.id,
     gameId: r.game_id,
+    game: r.game ?? "thulla",
+    details: r.details ?? null,
     mode: r.mode,
     playerCount: r.player_count,
     cpuDifficulty: r.cpu_difficulty,
@@ -127,7 +131,21 @@ function isMissingRelation(code?: string) {
   return code === "42P01" || code === "42883" || code === "PGRST202";
 }
 
-export async function fetchRemoteStats(userId: string): Promise<PlayerStats> {
+/**
+ * A player's record in one game.
+ *
+ * `get_game_stats` is the game-aware function. Thulla falls back to the
+ * original `get_player_stats` when it isn't there yet, so an un-migrated
+ * database keeps working exactly as before; any other game reports the
+ * migration as missing and the caller drops to the local record.
+ */
+export async function fetchRemoteStats(userId: string, gameId = "thulla"): Promise<PlayerStats> {
+  const scoped = await supabase.rpc("get_game_stats", { p_user: userId, p_game: gameId });
+  if (!scoped.error) return { ...EMPTY_STATS, ...(scoped.data as Partial<PlayerStats>) };
+
+  if (!isMissingRelation(scoped.error.code)) throw new Error(scoped.error.message);
+  if (gameId !== "thulla") throw new MigrationMissingError();
+
   const { data, error } = await supabase.rpc("get_player_stats", { p_user: userId });
   if (error) {
     if (isMissingRelation(error.code)) throw new MigrationMissingError();
@@ -141,30 +159,55 @@ export interface HistoryPage {
   hasMore: boolean;
 }
 
+/** Postgres "column does not exist" — the `game` column isn't there yet. */
+function isMissingColumn(code?: string) {
+  return code === "42703" || code === "PGRST204";
+}
+
 export async function fetchRemoteHistory(opts: {
   filter: HistoryFilter;
   sort: HistorySort;
   page: number;
   pageSize: number;
+  gameId?: string;
 }): Promise<HistoryPage> {
-  const { filter, sort, page, pageSize } = opts;
+  const { filter, sort, page, pageSize, gameId = "thulla" } = opts;
   // Fetch one extra row to learn whether another page exists, without a
   // second count query.
   const from = page * pageSize;
-  let q = supabase
-    .from("game_results")
-    .select("*")
-    .order("completed_at", { ascending: sort === "oldest" })
-    .order("id", { ascending: sort === "oldest" })
-    .range(from, from + pageSize);
+  const build = (scoped: boolean) => {
+    let q = supabase
+      .from("game_results")
+      .select("*")
+      .order("completed_at", { ascending: sort === "oldest" })
+      .order("id", { ascending: sort === "oldest" })
+      .range(from, from + pageSize);
+    if (scoped) q = q.eq("game", gameId);
+    return q;
+  };
 
+  let q = build(true);
   if (filter === "wins") q = q.eq("is_win", true);
   else if (filter === "losses") q = q.eq("is_win", false);
   else if (filter === "thulla") q = q.eq("is_thulla", true);
   else if (filter === "cpu") q = q.eq("mode", "cpu");
   else if (filter === "friends") q = q.eq("mode", "friends");
 
-  const { data, error } = await q;
+  let { data, error } = await q;
+
+  if (error && isMissingColumn(error.code)) {
+    // Pre-migration. Every row that exists is a Thulla row, so Thulla can
+    // safely read them unfiltered; anything else genuinely has no history.
+    if (gameId !== "thulla") return { records: [], hasMore: false };
+    let retry = build(false);
+    if (filter === "wins") retry = retry.eq("is_win", true);
+    else if (filter === "losses") retry = retry.eq("is_win", false);
+    else if (filter === "thulla") retry = retry.eq("is_thulla", true);
+    else if (filter === "cpu") retry = retry.eq("mode", "cpu");
+    else if (filter === "friends") retry = retry.eq("mode", "friends");
+    ({ data, error } = await retry);
+  }
+
   if (error) {
     if (isMissingRelation(error.code)) throw new MigrationMissingError();
     throw new Error(error.message);

@@ -21,6 +21,10 @@ export interface HistoryPlayer {
 }
 
 export interface GameRecord {
+  /** Which game this was. Absent on rows written before Bluff existed. */
+  game?: string;
+  /** Whatever only that game tracks — Bluff's challenge counters. */
+  details?: Record<string, number> | null;
   id: string;
   gameId: string;
   mode: GameMode;
@@ -134,12 +138,21 @@ export type LocalRecordInput = Omit<GameRecord, "id" | "completedAt">;
    can't fill its storage quota with history.
    ============================================================ */
 
-const LOCAL_KEY = "thulla.history.v1";
 const LOCAL_CAP = 300;
 
-export function readLocalHistory(): GameRecord[] {
+/**
+ * One key per game. Thulla keeps the key it has always used so nobody's
+ * signed-out record disappears when a second game arrives; anything else
+ * gets its own bucket, because a Bluff game must never land in a Thulla
+ * total.
+ */
+function localKeyFor(gameId: string): string {
+  return gameId === "thulla" ? "thulla.history.v1" : `thulla.history.${gameId}.v1`;
+}
+
+export function readLocalHistory(gameId = "thulla"): GameRecord[] {
   try {
-    const raw = readLocal(LOCAL_KEY);
+    const raw = readLocal(localKeyFor(gameId));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as GameRecord[]) : [];
@@ -149,8 +162,8 @@ export function readLocalHistory(): GameRecord[] {
 }
 
 /** Idempotent on `gameId`, so a re-render or refresh can't double-count. */
-export function saveLocalRecord(payload: LocalRecordInput): GameRecord[] {
-  const existing = readLocalHistory();
+export function saveLocalRecord(payload: LocalRecordInput, game = "thulla"): GameRecord[] {
+  const existing = readLocalHistory(game);
   if (existing.some((r) => r.gameId === payload.gameId)) return existing;
 
   const record: GameRecord = {
@@ -160,7 +173,7 @@ export function saveLocalRecord(payload: LocalRecordInput): GameRecord[] {
   };
   const next = [record, ...existing].slice(0, LOCAL_CAP);
   try {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(next));
+    localStorage.setItem(localKeyFor(game), JSON.stringify(next));
   } catch {
     /* quota — the game still finished, we just can't keep the record */
   }

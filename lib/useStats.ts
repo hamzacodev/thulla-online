@@ -31,7 +31,12 @@ export interface StatsState {
  * localStorage for everyone else. Both produce the same shape, so nothing
  * downstream has to care which one it's looking at.
  */
-export function useStats(userId: string | null, recentCount = 5): StatsState {
+/**
+ * @param gameId which game's record to read. Defaults to Thulla so every
+ * existing caller is unchanged; Bluff passes "bluff" and gets a completely
+ * separate set of numbers out of the same machinery.
+ */
+export function useStats(userId: string | null, recentCount = 5, gameId = "thulla"): StatsState {
   const [stats, setStats] = useState<PlayerStats>(EMPTY_STATS);
   const [recent, setRecent] = useState<GameRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +55,7 @@ export function useStats(userId: string | null, recentCount = 5): StatsState {
 
     async function load() {
       if (!userId) {
-        const local = readLocalHistory();
+        const local = readLocalHistory(gameId);
         if (!active) return;
         setStats(computeStats(local));
         setRecent(local.slice(0, recentCount));
@@ -59,8 +64,8 @@ export function useStats(userId: string | null, recentCount = 5): StatsState {
       }
       try {
         const [remoteStats, page] = await Promise.all([
-          fetchRemoteStats(userId),
-          fetchRemoteHistory({ filter: "all", sort: "newest", page: 0, pageSize: recentCount }),
+          fetchRemoteStats(userId, gameId),
+          fetchRemoteHistory({ filter: "all", sort: "newest", page: 0, pageSize: recentCount, gameId }),
         ]);
         if (!active) return;
         setStats(remoteStats);
@@ -69,7 +74,7 @@ export function useStats(userId: string | null, recentCount = 5): StatsState {
         if (!active) return;
         if (e instanceof MigrationMissingError) {
           // Fall back to whatever this device recorded, and say so.
-          const local = readLocalHistory();
+          const local = readLocalHistory(gameId);
           setStats(computeStats(local));
           setRecent(local.slice(0, recentCount));
           setMigrationMissing(true);
@@ -85,7 +90,7 @@ export function useStats(userId: string | null, recentCount = 5): StatsState {
     return () => {
       active = false;
     };
-  }, [userId, recentCount, nonce]);
+  }, [userId, recentCount, gameId, nonce]);
 
   return { stats, recent, loading, isLocal: !userId || migrationMissing, migrationMissing, error, refresh };
 }
