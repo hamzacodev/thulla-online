@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getAuthedUser } from "@/lib/authHelpers";
 import { isValidPlayerCount, MAX_PLAYERS, MIN_PLAYERS } from "@/lib/engine/rules";
 import type { RoomState } from "@/lib/roomTypes";
+import { isValidBestOf } from "@/lib/series/rules";
 
 function randomCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous glyphs
@@ -15,11 +16,22 @@ export async function POST(req: Request) {
   const user = await getAuthedUser(req);
   if (!user) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
 
-  const { maxPlayers } = await req.json();
+  const { maxPlayers, bestOf } = await req.json();
   const count = Number(maxPlayers);
   if (!isValidPlayerCount(count)) {
     return NextResponse.json(
       { error: `Player count must be between ${MIN_PLAYERS} and ${MAX_PLAYERS}.` },
+      { status: 400 }
+    );
+  }
+
+  // The match format, chosen up front and still editable in the lobby until
+  // the first deal. Validated here as well as there, because a room created
+  // with a nonsense format would be locked into it.
+  const format = bestOf === undefined ? 1 : Number(bestOf);
+  if (!isValidBestOf(format)) {
+    return NextResponse.json(
+      { error: "A series has to be an odd number of games — an even one can finish level." },
       { status: 400 }
     );
   }
@@ -35,6 +47,7 @@ export async function POST(req: Request) {
     game: null,
     trickEndsAt: null,
     resultsRecorded: false,
+    bestOf: format,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };

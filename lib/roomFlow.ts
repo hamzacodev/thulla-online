@@ -2,6 +2,7 @@ import { supabaseAdmin } from "./supabaseAdmin";
 import { createGame, resolveTrick, standings } from "./engine/rules";
 import { writeResult, type HistoryPlayerInput } from "./recordResult";
 import { TRICK_LINGER_MS, type RoomState } from "./roomTypes";
+import { createSeries, isSeries, isValidBestOf, recordGame } from "./series/rules";
 
 /**
  * Deals a fresh game into an existing room: same seats, new shuffle, new
@@ -9,6 +10,19 @@ import { TRICK_LINGER_MS, type RoomState } from "./roomTypes";
  * drift away from what starting a game does.
  */
 export function dealNewGame(state: RoomState, now = Date.now()): void {
+  // Open the series on the first deal, once the seats are actually known.
+  // Later deals reuse it — that is what makes them games 2, 3, 4 of one
+  // match rather than a string of unrelated rematches.
+  const bestOf = state.bestOf ?? 1;
+  if (isSeries(bestOf) && !state.series) {
+    state.series = createSeries({
+      game: "thulla",
+      bestOf,
+      players: state.seats.map((seat) => ({ id: seat.id, name: seat.name })),
+      now,
+    });
+  }
+
   state.game = createGame({
     players: state.seats.map((s) => ({ id: s.id, name: s.name, kind: "remote" as const })),
     config: { mode: "friends", mustLeadAceOfSpades: true },
@@ -18,6 +32,33 @@ export function dealNewGame(state: RoomState, now = Date.now()): void {
   state.resultsRecorded = false;
   state.rematchReady = [];
   state.updatedAt = now;
+}
+
+/** True when a series is running and still needs at least one more game. */
+export function seriesWantsAnotherGame(state: RoomState): boolean {
+  return !!state.series && state.series.status === "active";
+}
+
+/** True when the match is over — either a finished series or a single game. */
+export function matchIsOver(state: RoomState): boolean {
+  if (state.series) return state.series.status === "completed";
+  return state.game?.phase === "finished";
+}
+
+/**
+ * Locks the format in. Refused once a game has been dealt, because by then
+ * the number is part of a result somebody has already played for.
+ */
+export function setRoomFormat(state: RoomState, bestOf: number, now = Date.now()): string | null {
+  if (state.status !== "waiting" || state.series) {
+    return "The format is locked once the first game is dealt.";
+  }
+  if (!isValidBestOf(bestOf)) {
+    return "A series has to be an odd number of games — an even one can finish level.";
+  }
+  state.bestOf = bestOf;
+  state.updatedAt = now;
+  return null;
 }
 
 /**
@@ -92,6 +133,19 @@ export async function recordRoomResults(state: RoomState): Promise<void> {
   );
 
   state.resultsRecorded = true;
+
+  // Score the game into the series from the room's own state. recordGame is
+  // keyed on the game's id, so two clients reporting the same finish, or a
+  // retry of this whole function, still add exactly one win.
+  if (state.series) {
+    const winner = table[0];
+    const next = recordGame(state.series, {
+      gameId: game.gameId,
+      winnerId: winner ? winner.id : null,
+      winnerName: winner?.name ?? null,
+    });
+    if (!next.error) state.series = next.series;
+  }
 }
 
 export async function loadRoom(code: string): Promise<RoomState | null> {

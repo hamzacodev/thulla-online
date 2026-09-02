@@ -10,7 +10,8 @@
     "simulate": "tsc scripts/simulate.ts lib/engine/*.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/simulate.js",
     "ai-benchmark": "tsc scripts/ai-benchmark.ts lib/engine/*.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/ai-benchmark.js",
     "stats-test": "tsc scripts/stats-test.ts lib/statsMath.ts lib/engine/types.ts lib/engine/cards.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/stats-test.js",
-    "bluff-sim": "tsc scripts/bluff-simulate.ts lib/bluff/cards.ts lib/bluff/types.ts lib/bluff/rules.ts lib/bluff/ai.ts lib/engine/cards.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/bluff-simulate.js"
+    "bluff-sim": "tsc scripts/bluff-simulate.ts lib/bluff/cards.ts lib/bluff/types.ts lib/bluff/rules.ts lib/bluff/ai.ts lib/engine/cards.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/bluff-simulate.js",
+    "series-test": "tsc scripts/series-test.ts lib/series/rules.ts lib/series/types.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/series-test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

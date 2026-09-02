@@ -9,6 +9,11 @@ export interface TableSetup {
   playerCount: number;
   difficulty: Difficulty;
   names: string[]; // index 0 is the human
+  /**
+   * Match length. 1 is a single game. Belongs to the match rather than the
+   * player, so it lives here and not in the account's settings.
+   */
+  bestOf?: number;
 }
 
 const KEY = "thulla.setup.v1";
@@ -49,7 +54,7 @@ export function loadSetup(): TableSetup | null {
     ) {
       return null;
     }
-    return parsed;
+    return { ...parsed, bestOf: parsed.bestOf ?? 1 };
   } catch {
     return null;
   }

@@ -10,6 +10,12 @@ export interface BluffTableSetup {
   deckCount: number;
   difficulty: BluffDifficulty;
   names: string[];
+  /**
+   * How long the match is. 1 is a single game. A series setting belongs to
+   * the match, not to the player, which is why it lives here beside the deck
+   * count rather than in the account's settings.
+   */
+  bestOf?: number;
 }
 
 /**
@@ -44,7 +50,7 @@ export function loadBluffSetup(): BluffTableSetup | null {
     ) {
       return null;
     }
-    return parsed;
+    return { ...parsed, bestOf: parsed.bestOf ?? 1 };
   } catch {
     return null;
   }

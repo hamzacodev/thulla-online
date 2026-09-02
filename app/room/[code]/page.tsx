@@ -10,6 +10,9 @@ import { ThullaToast } from "@/components/ThullaToast";
 import { VoiceChat } from "@/components/VoiceChat";
 import { ChatDrawer, RoomChat } from "@/components/RoomChat";
 import { QuitDialog } from "@/components/QuitDialog";
+import { SeriesComplete, SeriesInterval, SeriesTableStrip } from "@/components/SeriesPanels";
+import { SeriesFormatPicker } from "@/components/SeriesFormatPicker";
+import { formatLabel } from "@/lib/series/rules";
 import { Avatar } from "@/components/Avatar";
 import { useRoom } from "@/lib/useRoom";
 import { useAuth } from "@/lib/useAuth";
@@ -191,6 +194,13 @@ export default function RoomPage() {
    * vote and the server deals as soon as the last seat has voted. Tapping
    * again takes the vote back.
    */
+  /** Host-only, and the server enforces both that and the lock. */
+  async function handleFormat(bestOf: number) {
+    const data = await authedFetch("/api/room-format", accessToken, { code, bestOf });
+    if (data.error) say(data.error, "error");
+    else refresh();
+  }
+
   /** Concede: it ends the game and the loss is recorded like any other. */
   async function handleQuit() {
     setQuitting(true);
@@ -304,6 +314,26 @@ export default function RoomPage() {
               })}
             </div>
 
+            {/* The format. The host picks it; everyone else is told what it
+                is. It stops being editable the moment the first game is
+                dealt — the server refuses either way. */}
+            <div className="mb-4 text-left">
+              {isHost ? (
+                <SeriesFormatPicker
+                  bestOf={state.bestOf ?? 1}
+                  onChange={(bestOf) => void handleFormat(bestOf)}
+                />
+              ) : (
+                <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-center">
+                  <p className="text-[0.7rem] uppercase tracking-wider text-brass-300">Format</p>
+                  <p className="mt-0.5 text-sm font-semibold text-cream-100">
+                    {formatLabel(state.bestOf ?? 1)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-cream-400">Set by the host.</p>
+                </div>
+              )}
+            </div>
+
             {showVoice && (
               <div className="mb-4">
                 <VoiceChat
@@ -354,6 +384,25 @@ export default function RoomPage() {
     );
   }
 
+  /* ---------- Series complete ---------- */
+  if (game.phase === "finished" && state.series?.status === "completed") {
+    return (
+      <main className="felt flex min-h-dvh flex-col items-center justify-center px-4 py-8">
+        <SeriesComplete
+          series={state.series}
+          meId={userId ?? undefined}
+          avatars={avatars}
+          historyHref="/games/thulla/history"
+          onPlayAgain={
+            state.hostId === userId
+              ? () => router.push("/games/thulla/play?mode=friends")
+              : undefined
+          }
+        />
+      </main>
+    );
+  }
+
   /* ---------- Finished ---------- */
   if (game.phase === "finished") {
     return (
@@ -386,6 +435,16 @@ export default function RoomPage() {
           stats={statsLoading ? null : stats}
           statsAreLocal={isLocal}
           avatars={avatars}
+          seriesPanel={
+            state.series && state.series.status === "active" ? (
+              <SeriesInterval
+                series={state.series}
+                meId={userId ?? undefined}
+                avatars={avatars}
+                onNextGame={() => void handleRematch()}
+              />
+            ) : undefined
+          }
           onRematch={() => void handleRematch()}
           rematch={{
             readyNames: (state.rematchReady ?? [])
@@ -479,6 +538,8 @@ export default function RoomPage() {
           />
         )}
       </header>
+
+      {state.series && <SeriesTableStrip series={state.series} meId={userId ?? undefined} />}
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <GameTable

@@ -10,6 +10,8 @@ import { clearSavedGame } from "@/lib/useLocalGame";
 import { PLAYER_COUNTS, defaultNames, loadSetup, saveSetup, type TableSetup } from "@/lib/setup";
 import type { Difficulty } from "@/lib/engine/types";
 import { sfx, primeAudio } from "@/lib/sound";
+import { SeriesFormatPicker } from "@/components/SeriesFormatPicker";
+import { clearSeries } from "@/lib/series/store";
 
 /**
  * Thulla's table setup: opponents, player count, names, CPU difficulty.
@@ -79,13 +81,17 @@ export function ThullaSetup({ basePath = "/play" }: { basePath?: string }) {
     };
     saveSetup(cleaned);
     clearSavedGame(); // a new table makes the old save stale
+    clearSeries("thulla"); // and starts a brand new series, never reusing one
     router.push("/game");
   }
 
   async function createRoom() {
     setBusy(true);
     setError("");
-    const data = await authedFetch("/api/create-room", accessToken, { maxPlayers: setup.playerCount });
+    const data = await authedFetch("/api/create-room", accessToken, {
+      maxPlayers: setup.playerCount,
+      bestOf: setup.bestOf ?? 1,
+    });
     setBusy(false);
     if (data.error) return setError(data.error);
     router.push(`/room/${data.code}`);
@@ -180,6 +186,13 @@ export function ThullaSetup({ basePath = "/play" }: { basePath?: string }) {
               </div>
             </section>
 
+            <div className="mt-6">
+              <SeriesFormatPicker
+                bestOf={setup.bestOf ?? 1}
+                onChange={(bestOf) => setSetup((s) => ({ ...s, bestOf }))}
+              />
+            </div>
+
             <button onClick={startLocal} className="btn btn-primary mt-7 w-full !min-h-14 text-base">
               🎮 Deal the cards
             </button>
@@ -205,8 +218,23 @@ export function ThullaSetup({ basePath = "/play" }: { basePath?: string }) {
               <div className="space-y-5">
                 <div>
                   <h2 className="mb-2 text-sm font-semibold text-cream-100">Host a room</h2>
+
+                  {/* The host's call, and only the host's — a guest joining
+                      the room accepts whatever format is set. It stays
+                      editable in the lobby right up to the first deal. */}
+                  <div className="mb-4">
+                    <SeriesFormatPicker
+                      bestOf={setup.bestOf ?? 1}
+                      onChange={(bestOf) => setSetup((s) => ({ ...s, bestOf }))}
+                    />
+                  </div>
+
                   <button onClick={createRoom} disabled={busy} className="btn btn-primary w-full">
-                    {busy ? "Creating…" : `Create a ${setup.playerCount}-player room`}
+                    {busy
+                      ? "Creating…"
+                      : `Create a ${setup.playerCount}-player room${
+                          (setup.bestOf ?? 1) > 1 ? ` · best of ${setup.bestOf}` : ""
+                        }`}
                   </button>
                   <p className="mt-2 text-xs text-cream-400">
                     You&apos;ll get a code to share. Everyone joins from wherever they are.

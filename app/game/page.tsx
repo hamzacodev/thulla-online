@@ -19,6 +19,10 @@ import { useAvatars } from "@/lib/useAvatars";
 import { invalidCardMessage, phrase, t } from "@/lib/copy";
 import { sfx, setSoundEnabled, primeAudio } from "@/lib/sound";
 import { ACE_OF_SPADES, cardLabel, type Card } from "@/lib/engine/cards";
+import { SeriesComplete, SeriesInterval, SeriesTableStrip } from "@/components/SeriesPanels";
+import { createSeries, isSeries, recordGame } from "@/lib/series/rules";
+import { clearSeries, loadSeries, saveSeries } from "@/lib/series/store";
+import type { SeriesState } from "@/lib/series/types";
 
 export default function LocalGamePage() {
   const router = useRouter();
@@ -30,6 +34,8 @@ export default function LocalGamePage() {
   const [aceNotice, setAceNotice] = useState<string | null>(null);
   const toastId = useRef(0);
   const recorded = useRef<string | null>(null);
+  const scored = useRef<string | null>(null);
+  const [series, setSeries] = useState<SeriesState | null>(null);
 
   const lang = settings.lang;
 
@@ -41,9 +47,29 @@ export default function LocalGamePage() {
   useEffect(() => {
     if (!ready) return;
     const saved = loadSetup();
-    if (!saved) router.replace("/play?mode=cpu");
+    if (!saved) {
+      router.replace("/games/thulla/play?mode=cpu");
+      return;
+    }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the table only exists in localStorage, so it has to be read on mount
-    else setSetup(saved);
+    setSetup(saved);
+
+    // Resume a running series, or open one. Read back rather than held in
+    // memory, so a refresh mid-series loses nothing.
+    const bestOf = saved.bestOf ?? 1;
+    if (!isSeries(bestOf)) return;
+    const existing = loadSeries("thulla");
+    if (existing && existing.bestOf === bestOf && existing.players.length === saved.playerCount) {
+      setSeries(existing);
+      return;
+    }
+    const fresh = createSeries({
+      game: "thulla",
+      bestOf,
+      players: saved.names.slice(0, saved.playerCount).map((name, i) => ({ id: `seat-${i}`, name })),
+    });
+    saveSeries(fresh);
+    setSeries(fresh);
   }, [ready, router]);
 
   const say = useCallback((text: string, tone?: ToastMessage["tone"]) => {
@@ -186,6 +212,32 @@ export default function LocalGamePage() {
     void recordFinishedGame(payload, accessToken).then(() => refreshStats());
   }, [state, humanSeat, accessToken, refreshStats]);
 
+  /**
+   * Add the result to the series, once.
+   *
+   * The individual game is finalised by the effect above first; this only
+   * ever adds to the parent record. Keyed on the game's own id, so a
+   * re-render or a refresh on the result screen can't count a win twice.
+   */
+  useEffect(() => {
+    if (!state || state.phase !== "finished" || !series) return;
+    if (scored.current === state.gameId) return;
+    scored.current = state.gameId;
+
+    const winner = state.finishOrder.length ? state.players[state.finishOrder[0]] : null;
+    const next = recordGame(series, {
+      gameId: state.gameId,
+      winnerId: winner ? `seat-${winner.seat}` : null,
+      winnerName: winner?.name ?? null,
+    });
+    if (next.error) return;
+    saveSeries(next.series);
+    // Reacting to a one-shot engine event and mirroring what was just
+    // persisted; the ref guard above is what makes it fire exactly once.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSeries(next.series);
+  }, [state, series]);
+
   function handlePlay(card: Card) {
     primeAudio();
     const err = play(card);
@@ -220,6 +272,35 @@ export default function LocalGamePage() {
   }
 
   if (state.phase === "finished") {
+    // The series screen appears only once the series is genuinely won —
+    // never after a game that merely moved the score.
+    if (series && series.status === "completed") {
+      return (
+        <main className="felt flex min-h-dvh flex-col items-center justify-center px-4 py-8">
+          <SeriesComplete
+            series={series}
+            meId={`seat-${humanSeat}`}
+            avatars={avatars}
+            historyHref="/games/thulla/history"
+            onPlayAgain={() => {
+              // A new series, never a reset of the finished one.
+              clearSeries("thulla");
+              const fresh = createSeries({
+                game: "thulla",
+                bestOf: series.bestOf,
+                players: series.players.map((p) => ({ id: p.id, name: p.name })),
+              });
+              saveSeries(fresh);
+              setSeries(fresh);
+              recorded.current = null;
+              scored.current = null;
+              handleRematch();
+            }}
+          />
+        </main>
+      );
+    }
+
     return (
       <main className="felt flex min-h-dvh flex-col">
         <GameOver
@@ -229,8 +310,22 @@ export default function LocalGamePage() {
           stats={statsLoading ? null : stats}
           statsAreLocal={isLocal}
           avatars={avatars}
-          onRematch={handleRematch}
+          onRematch={series ? undefined : handleRematch}
           onNewGame={() => router.push("/games/thulla/play?mode=cpu")}
+          seriesPanel={
+            series ? (
+              <SeriesInterval
+                series={series}
+                meId={`seat-${humanSeat}`}
+                avatars={avatars}
+                onNextGame={() => {
+                  recorded.current = null;
+                  scored.current = null;
+                  handleRematch();
+                }}
+              />
+            ) : undefined
+          }
         />
       </main>
     );
@@ -249,7 +344,10 @@ export default function LocalGamePage() {
         <span className="tabular text-[0.7rem] text-cream-400">
           Trick {state.trickNumber} · {state.config.difficulty}
         </span>
+
       </header>
+
+      {series && <SeriesTableStrip series={series} meId={`seat-${humanSeat}`} />}
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <GameTable

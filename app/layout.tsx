@@ -31,7 +31,18 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${fraunces.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">
+      {/*
+        Browser extensions get at <body> before React hydrates — ColorZilla
+        adds cz-shortcut-listen, Grammarly adds data-gr-*, and there are
+        plenty more. React then finds a body that doesn't match what it
+        rendered and throws a hydration error at a visitor who has done
+        nothing wrong and cannot be asked to uninstall anything.
+
+        This suppresses the warning for <body>'s own attributes only. It
+        does not cascade, so a genuine hydration mismatch anywhere inside
+        the app still surfaces normally.
+      */}
+      <body className="flex min-h-full flex-col" suppressHydrationWarning>
         <SettingsProvider>{children}</SettingsProvider>
       </body>
     </html>

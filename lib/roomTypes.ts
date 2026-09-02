@@ -1,4 +1,5 @@
 import type { GameState } from "./engine/types";
+import type { SeriesState } from "./series/types";
 
 export type RoomStatus = "waiting" | "playing" | "finished";
 
@@ -39,6 +40,18 @@ export interface RoomState {
    * before it existed still load.
    */
   rematchReady?: string[];
+  /**
+   * The match format the host has chosen. 1 is a single game. Editable in
+   * the lobby, and read-only from the first deal onwards — once a series has
+   * started, changing how long it is would change a result already earned.
+   */
+  bestOf?: number;
+  /**
+   * The running series, created with the first deal. Lives in the room's
+   * state, which only the server's own API routes ever write, so the score
+   * is authoritative — a client can't award itself a game.
+   */
+  series?: SeriesState;
   createdAt: number;
   updatedAt: number;
 }

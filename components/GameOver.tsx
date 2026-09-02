@@ -43,6 +43,8 @@ interface GameOverProps {
    * happens once everyone has asked for it. Absent in single player, where
    * "rematch" just deals again immediately.
    */
+  /** The between-games panel, when this game was part of a series. */
+  seriesPanel?: React.ReactNode;
   rematch?: {
     /** Names of everyone who has said yes so far. */
     readyNames: string[];
@@ -63,6 +65,7 @@ export function GameOver({
   avatars,
   onRematch,
   onNewGame,
+  seriesPanel,
   rematch,
 }: GameOverProps) {
   const table = standings(state);
@@ -163,6 +166,8 @@ export function GameOver({
             </dl>
           </div>
         )}
+
+        {seriesPanel}
 
         {/* Online: a vote, so nobody is stuck waiting on the host. */}
         {rematch && onRematch && (

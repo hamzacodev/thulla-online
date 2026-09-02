@@ -12,6 +12,8 @@ import { bluffCpuName } from "@/lib/bluff/ai";
 import { loadBluffSetup, saveBluffSetup, type BluffTableSetup } from "@/lib/bluff/setup";
 import type { BluffDifficulty } from "@/lib/bluff/types";
 import { primeAudio, sfx } from "@/lib/sound";
+import { SeriesFormatPicker } from "@/components/SeriesFormatPicker";
+import { clearSeries } from "@/lib/series/store";
 
 const PLAYER_COUNTS = Array.from({ length: MAX_PLAYERS - MIN_PLAYERS + 1 }, (_, i) => MIN_PLAYERS + i);
 const DECKS = Array.from({ length: MAX_DECKS - MIN_DECKS + 1 }, (_, i) => MIN_DECKS + i);
@@ -42,6 +44,7 @@ export function BluffSetup({ basePath = "/games/bluff/play" }: { basePath?: stri
     deckCount: 1,
     difficulty: settings.difficulty as BluffDifficulty,
     names: ["You", bluffCpuName(0), bluffCpuName(1), bluffCpuName(2)],
+    bestOf: 1,
   });
 
   useEffect(() => {
@@ -70,6 +73,7 @@ export function BluffSetup({ basePath = "/games/bluff/play" }: { basePath?: stri
     };
     saveBluffSetup(cleaned);
     clearSavedBluffGame(); // a new table makes the old save stale
+    clearSeries("bluff"); // and starts a brand new series, never reusing one
     router.push("/games/bluff/table");
   }
 
@@ -191,6 +195,13 @@ export function BluffSetup({ basePath = "/games/bluff/play" }: { basePath?: stri
               ))}
             </div>
           </section>
+
+          <div className="mt-6">
+            <SeriesFormatPicker
+              bestOf={setup.bestOf ?? 1}
+              onChange={(bestOf) => setSetup((s) => ({ ...s, bestOf }))}
+            />
+          </div>
 
           <section className="mt-6">
             <h2 className="mb-2 text-sm font-semibold text-cream-100">Names</h2>

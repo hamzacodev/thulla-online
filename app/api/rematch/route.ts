@@ -41,6 +41,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "That game hasn't finished yet." }, { status: 400 });
   }
 
+  // A won series is finished. Another game would be game N+1 of a match
+  // that already has a winner, so it is refused here rather than left to
+  // whichever screen happens to hide the button.
+  if (state.series && state.series.status === "completed") {
+    return NextResponse.json(
+      { error: "That series is over. Start a new one to keep playing." },
+      { status: 400 }
+    );
+  }
+
   const seatIds = state.seats.map((s) => s.id);
   const ready = new Set((state.rematchReady ?? []).filter((id) => seatIds.includes(id)));
 

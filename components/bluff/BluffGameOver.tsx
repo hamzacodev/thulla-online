@@ -21,11 +21,14 @@ export function BluffGameOver({
   viewSeat,
   avatars,
   onRematch,
+  series,
 }: {
   state: BluffState;
   viewSeat: number;
   avatars?: Record<string, string>;
   onRematch?: () => void;
+  /** The between-games panel, when this game was part of a series. */
+  series?: React.ReactNode;
 }) {
   const table = bluffStandings(state);
   const winner = table[0];
@@ -100,6 +103,8 @@ export function BluffGameOver({
           {state.config.deckCount} deck{state.config.deckCount > 1 ? "s" : ""} /{" "}
           {cardsForDecks(state.config.deckCount)} cards · {duration(state)}
         </p>
+
+        {series}
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row">
           {onRematch && (
