@@ -104,9 +104,8 @@ export default function LocalGamePage() {
           sfx.trickWon();
           break;
         case "pickup":
-          sfx.pickup();
-          // The gag lands just after the cards are scooped up.
-          setTimeout(() => sfx.thulla(), 170);
+          // One sound, not two: the gag is the moment.
+          sfx.thulla();
           break;
         case "out":
           break;

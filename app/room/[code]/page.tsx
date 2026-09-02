@@ -155,9 +155,9 @@ export default function RoomPage() {
       const who = game.players[o.winnerSeat];
       say(o.winnerSeat === mySeat ? `🏆 ${t("trickWonYou", lang)}` : `🏆 ${phrase.wonTrick(who.name, lang)}`, "good");
     } else {
-      sfx.pickup();
-      // The gag lands just after the cards are scooped up.
-      setTimeout(() => sfx.thulla(), 170);
+      // One sound, not two: the gag is the moment. A riffle underneath it
+      // just doubles up now that these are real recordings.
+      sfx.thulla();
       const who = game.players[o.collectorSeat];
       const broke = game.players[o.brokeBySeat];
       say(
