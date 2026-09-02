@@ -54,11 +54,15 @@ export function BluffTable({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Shorter than Thulla's ring on purpose. Bluff's controls are a rank
-          picker and a big commit button, which is a lot taller than a row of
-          cards — at Thulla's height the claim bar fell off the bottom of the
-          screen. */}
-      <div className="seat-ring flex min-h-0 flex-1 flex-col md:block md:flex-none md:!h-[min(38vh,20rem)]">
+      {/* The table takes whatever height is left over.
+          Thulla's ring is a fixed height, which works there because its
+          controls are a row of cards. Bluff's are a thirteen-button rank
+          picker and a commit button — much taller — so a fixed ring either
+          pushed them off the bottom of a short window or, once shortened,
+          left a band of dead felt underneath them on a tall one. Growing
+          instead of fixing keeps the controls on the bottom edge where a
+          thumb expects them, at every height. */}
+      <div className="seat-ring flex min-h-0 flex-1 flex-col md:block md:!h-auto md:!min-h-[15rem]">
         <div className="flex flex-wrap items-start justify-center gap-2 px-2 pt-2 md:contents">
           {others.map((p, i) => {
             const along = others.length === 1 ? 0.5 : 0.09 + (0.82 * i) / (others.length - 1);
