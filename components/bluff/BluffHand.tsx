@@ -9,6 +9,13 @@ import { faceOf, type BluffCard } from "@/lib/bluff/cards";
  * in one hand, so this scrolls horizontally with a fixed, tappable step
  * between cards instead of squeezing them until nobody can hit one.
  *
+ * The overlap has to stay under half a card, and not only for looks. Cards
+ * are stacked left-under-right, so a selected card raised above its
+ * neighbours covers the strip of the card to its right. At 52% overlap that
+ * strip was 48% wide — narrower than the card covering it — so selecting one
+ * card made the next one vanish. Under 50% the neighbour always keeps a
+ * sliver of itself.
+ *
  * Selection is by card id, not by face — with three decks there are three
  * aces of spades and tapping one must not select the other two.
  */
@@ -27,7 +34,7 @@ export function BluffHand({
 
   return (
     <div
-      className="no-scrollbar w-full overflow-x-auto overflow-y-hidden px-3 pb-3 pt-7"
+      className="no-scrollbar w-full shrink-0 overflow-x-auto overflow-y-hidden px-3 pb-2 pt-6"
       role="group"
       aria-label="Your hand"
       aria-disabled={!enabled}
@@ -47,13 +54,13 @@ export function BluffHand({
               style={{
                 // A fixed overlap keeps every card's exposed strip the same
                 // width, so the target size doesn't depend on hand size.
-                marginLeft: i === 0 ? 0 : "calc(var(--card-w) * -0.52)",
+                marginLeft: i === 0 ? 0 : "calc(var(--card-w) * -0.34)",
                 zIndex: isSelected ? 100 + i : i,
               }}
             >
               <span
                 className="block transition-transform duration-200 ease-[var(--ease-card)]"
-                style={{ transform: isSelected ? "translateY(-1.1rem)" : "translateY(0)" }}
+                style={{ transform: isSelected ? "translateY(-0.9rem)" : "translateY(0)" }}
               >
                 <PlayingCard
                   card={faceOf(card)}

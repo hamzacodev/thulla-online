@@ -39,7 +39,7 @@ export function ClaimBar({
   const truthful = !!rank && chosen.length > 0 && chosen.every((c) => c.rank === rank);
 
   return (
-    <div className="border-t border-white/10 bg-ink-950/90 px-3 pb-[max(0.6rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur-md">
+    <div className="shrink-0 border-t border-white/10 bg-ink-950/90 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md">
       <div className="mx-auto w-full max-w-md">
         <div className="flex items-center justify-between gap-2">
           <p className="tabular text-xs text-cream-400">
@@ -72,7 +72,7 @@ export function ClaimBar({
                     key={r}
                     onClick={() => onPickRank(r)}
                     aria-pressed={active}
-                    className={`tabular btn relative !min-h-10 !px-0 !text-sm ${
+                    className={`tabular btn relative !min-h-9 !px-0 !text-sm ${
                       active ? "btn-primary" : "btn-secondary"
                     }`}
                   >
@@ -97,7 +97,7 @@ export function ClaimBar({
         <button
           onClick={onPlay}
           disabled={!ready}
-          className="btn btn-primary mt-2.5 !min-h-14 w-full text-base"
+          className="btn btn-primary mt-2 !min-h-12 w-full text-base"
         >
           {count === 0
             ? "Select cards to play"
@@ -131,25 +131,27 @@ export function ChallengeBar({
   onPass: () => void;
 }) {
   return (
-    <div className="border-t border-white/10 bg-ink-950/90 px-3 pb-[max(0.6rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur-md">
+    <div className="shrink-0 border-t border-white/10 bg-ink-950/90 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md">
       <div className="mx-auto w-full max-w-md">
         <p className="text-center text-sm text-cream-100">
           <span className="font-semibold">{name}</span> claims{" "}
           <span className="font-display font-bold text-brass-200">{claimLabel(rank, count)}</span>
         </p>
-        <p className="mt-0.5 text-center text-xs text-cream-400">Believe them?</p>
+        <p className="mt-0.5 text-center text-xs text-cream-400">
+          Only you can call this one. Pass and it&apos;s your turn.
+        </p>
 
         {/* Gap, deliberately: these two do opposite things. */}
         <div className="mt-2.5 flex gap-3">
           <button
             onClick={onPass}
-            className="btn btn-secondary !min-h-14 flex-1 text-base"
+            className="btn btn-secondary !min-h-13 flex-1 text-base"
           >
-            Let it go
+            PASS
           </button>
           <button
             onClick={onCall}
-            className="btn !min-h-14 flex-1 !border-chili-400/50 !bg-chili-500/90 text-base !text-white"
+            className="btn !min-h-13 flex-1 !border-chili-400/50 !bg-chili-500/90 text-base !text-white"
           >
             😈 BLUFF!
           </button>

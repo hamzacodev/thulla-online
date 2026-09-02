@@ -77,11 +77,20 @@ export default function BluffRulesPage() {
           <Hand cards={["7S", "KH", "3D"]} caption="…is what you actually played" />
         </Step>
 
-        <Step icon="🚨" title="Anyone can call it">
+        <Step icon="🚨" title="The next player calls it — nobody else">
           <p>
-            After a claim, every other player gets the chance to shout{" "}
-            <strong className="text-chili-400">BLUFF!</strong> — or let it go. Once the window has
-            passed, that claim can&apos;t be challenged any more.
+            One play, one chance to challenge it, and it belongs to{" "}
+            <strong>the next player round</strong>. They either shout{" "}
+            <strong className="text-chili-400">BLUFF!</strong> or{" "}
+            <strong>PASS</strong>.
+          </p>
+          <p>
+            Pass and the claim is accepted for good — nobody further round can come back to it
+            later. Then you simply take your own turn.
+          </p>
+          <p className="text-cream-400">
+            Hamza claims 3 Kings → Ali is next → Ali passes → Hamza&apos;s play is settled, and
+            Ahmed can never challenge it.
           </p>
         </Step>
 

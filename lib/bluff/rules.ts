@@ -54,32 +54,32 @@ function nextActive(state: BluffState, from: number): number | null {
   return state.players[from]?.hand.length ? from : null;
 }
 
-/** Everyone who could challenge the claim on the table. */
+/**
+ * Who may challenge the claim on the table: the next player round, and
+ * nobody else.
+ *
+ * One play, one challenge, and it belongs to the person whose turn is next.
+ * If they pass, the claim is accepted for good — a player further round
+ * cannot come back to it later, and it can never be challenged twice. That
+ * also means passing and playing are the same person's decision, in that
+ * order, which is what makes the choice interesting: call it, or take your
+ * own turn and let it stand.
+ */
 export function challengers(state: BluffState): number[] {
   if (!state.claim) return [];
-  return state.players
-    .filter((p) => p.seat !== state.claim!.seat && p.hand.length > 0)
-    .map((p) => p.seat);
+  const next = nextActive(state, state.claim.seat);
+  return next === null || next === state.claim.seat ? [] : [next];
 }
 
 /**
- * Whose turn it is to accept or call the claim.
- *
- * The window is worked through one seat at a time rather than everybody at
- * once, so a human is never racing three CPUs for the button and the order
- * of events is the same every time.
+ * The one player who gets to decide about the claim on the table, or null
+ * once they've decided.
  */
 export function nextChallenger(state: BluffState): number | null {
   if (state.phase !== "challenge" || !state.claim) return null;
-  const total = state.players.length;
-  for (let i = 1; i <= total; i++) {
-    const seat = (state.claim.seat + i) % total;
-    if (seat === state.claim.seat) continue;
-    if (state.players[seat].hand.length === 0) continue;
-    if (state.claim.passed.includes(seat)) continue;
-    return seat;
-  }
-  return null;
+  const [seat] = challengers(state);
+  if (seat === undefined || state.claim.passed.includes(seat)) return null;
+  return seat;
 }
 
 export interface CreateBluffOptions {
@@ -227,6 +227,9 @@ export function passChallenge(stateIn: BluffState, seat: number): BluffResult {
     return { state: stateIn, error: "There's nothing to call right now." };
   }
   if (seat === stateIn.claim.seat) return { state: stateIn, error: "You can't call your own claim." };
+  if (!challengers(stateIn).includes(seat)) {
+    return { state: stateIn, error: "That one isn't yours to accept." };
+  }
   if (stateIn.claim.passed.includes(seat)) return { state: stateIn };
 
   const state = clone(stateIn);
@@ -239,8 +242,9 @@ export function passChallenge(stateIn: BluffState, seat: number): BluffResult {
 }
 
 /**
- * Nobody called it. The cards stay in the pile, a lie that got away is
- * counted, and the turn moves on — the round stays on the same rank.
+ * Passed. The cards stay in the pile, a lie that got away is counted, and
+ * the turn moves to the player who passed — accepting the claim and taking
+ * your own turn are the same move.
  */
 function settleUnchallenged(state: BluffState): BluffState {
   const claim = state.claim!;
@@ -270,6 +274,12 @@ export function callBluff(stateIn: BluffState, seat: number): BluffResult {
   }
   if (seat === stateIn.claim.seat) return { state: stateIn, error: "You can't call your own claim." };
   if (stateIn.players[seat]?.hand.length === 0) return { state: stateIn, error: "You're out of the game." };
+  // The challenge belongs to the next player round and nobody else. Without
+  // this the rule lived only in whose UI showed the button, which is not
+  // where a rule belongs.
+  if (!challengers(stateIn).includes(seat)) {
+    return { state: stateIn, error: "Only the next player can call that one." };
+  }
 
   const state = clone(stateIn);
   const claim = state.claim!;

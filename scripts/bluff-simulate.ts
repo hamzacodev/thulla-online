@@ -153,6 +153,57 @@ for (const difficulty of ["easy", "medium", "hard"] as BluffDifficulty[]) {
   }
 }
 
+/* ---------- one challenge per play, and it belongs to the next player ---------- */
+console.log("\nChallenge rule");
+let ruleBad = 0;
+const rule = (ok: boolean, why: string) => {
+  if (!ok) {
+    ruleBad++;
+    if (ruleBad <= 6) console.log(`   ! ${why}`);
+  }
+};
+
+for (const players of [2, 3, 4, 6, 8]) {
+  for (let seed = 0; seed < 30; seed++) {
+    let s = createBluffGame({
+      players: Array.from({ length: players }, (_, i) => ({ id: `p${i}`, name: `P${i}`, kind: "cpu" as const })),
+      config: { deckCount: (seed % 3) + 1, seed: seed * 17 + players },
+    });
+    const claimer = s.turnSeat;
+    const d = chooseClaim(s, claimer, "medium");
+    if (!d) continue;
+    const played = applyClaim(s, claimer, d.cardIds, d.rank);
+    if (played.error) continue;
+    s = played.state;
+    if (s.phase !== "challenge") continue;
+
+    const next = (claimer + 1) % players;
+    rule(challengers(s).length === 1, `${players}p/${seed}: ${challengers(s).length} players could challenge, expected 1`);
+    rule(challengers(s)[0] === next, `${players}p/${seed}: challenger is ${challengers(s)[0]}, expected ${next}`);
+
+    // Everybody else must be refused, in both directions.
+    for (let k = 2; k < players; k++) {
+      const other = (claimer + k) % players;
+      rule(!!callBluff(s, other).error, `${players}p/${seed}: seat ${other} was allowed to call BLUFF`);
+      rule(!!passChallenge(s, other).error, `${players}p/${seed}: seat ${other} was allowed to pass`);
+    }
+
+    const after = passChallenge(s, next);
+    rule(!after.error, `${players}p/${seed}: the next player couldn't pass`);
+    rule(after.state.phase !== "challenge", `${players}p/${seed}: passing didn't settle the claim`);
+    if (after.state.phase === "claiming") {
+      rule(after.state.turnSeat === next, `${players}p/${seed}: the passer didn't get the turn`);
+    }
+    // And it can never be reopened.
+    for (let k = 2; k < players; k++) {
+      const other = (claimer + k) % players;
+      rule(!!callBluff(after.state, other).error, `${players}p/${seed}: seat ${other} challenged an accepted play`);
+    }
+  }
+}
+failures += ruleBad;
+console.log(`  150 claims across 2/3/4/6/8 players — ${ruleBad} failures`);
+
 /* ---------- conceding ---------- */
 console.log("\nConceding");
 let concedeBad = 0;

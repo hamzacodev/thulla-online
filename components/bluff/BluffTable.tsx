@@ -54,7 +54,11 @@ export function BluffTable({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="seat-ring flex min-h-0 flex-1 flex-col md:block md:flex-none">
+      {/* Shorter than Thulla's ring on purpose. Bluff's controls are a rank
+          picker and a big commit button, which is a lot taller than a row of
+          cards — at Thulla's height the claim bar fell off the bottom of the
+          screen. */}
+      <div className="seat-ring flex min-h-0 flex-1 flex-col md:block md:flex-none md:!h-[min(38vh,20rem)]">
         <div className="flex flex-wrap items-start justify-center gap-2 px-2 pt-2 md:contents">
           {others.map((p, i) => {
             const along = others.length === 1 ? 0.5 : 0.09 + (0.82 * i) / (others.length - 1);
@@ -98,9 +102,9 @@ export function BluffTable({
       </div>
 
       {/* Status line */}
-      <div className="flex min-h-[2rem] items-center justify-center px-3 pb-0.5 pt-1">
+      <div className="flex min-h-[1.75rem] shrink-0 items-center justify-center px-3 pt-0.5">
         <p
-          className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
+          className={`rounded-full px-4 py-1 text-sm font-semibold ${
             myTurn || awaitingChallenge
               ? "bg-mint-400/15 text-mint-300 ring-1 ring-mint-300/40"
               : "text-cream-400"
@@ -122,7 +126,7 @@ export function BluffTable({
       </div>
 
       {/* Your seat */}
-      <div className="shrink-0">
+      <div className="flex min-h-0 shrink-0 flex-col">
         <div className="mx-auto flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs text-cream-400">
           <span className="font-semibold text-cream-100">{me?.name}</span>
           <span className="tabular">
