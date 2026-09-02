@@ -8,6 +8,7 @@ import type { Difficulty, EnginePlayer, GameState } from "./engine/types";
 import type { Card } from "./engine/cards";
 import { SPEED_FACTOR, type Speed } from "./settings";
 import { readLocal } from "./localKeys";
+import { soundBusyMs } from "./sound";
 
 const SAVE_KEY = "thulla.localgame.v3";
 
@@ -46,6 +47,8 @@ export function useLocalGame(options: LocalGameOptions) {
   // in-game scheduler. They need separate handles — the scheduler clears its
   // timer on every state change, which would otherwise kill the intro.
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The outcome we've already narrated — identity, so one trick sounds once. */
+  const announced = useRef<GameState["trickOutcome"] | null>(null);
   const introTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const invalidCount = useRef(0);
   const emit = useRef(onEvent);
@@ -159,10 +162,25 @@ export function useLocalGame(options: LocalGameOptions) {
 
     if (state.phase === "trickEnd") {
       const outcome = state.trickOutcome;
-      timer.current = setTimeout(() => {
-        if (outcome?.kind === "discard") emit.current?.({ type: "trickWon", seat: outcome.winnerSeat });
-        if (outcome?.kind === "pickup") {
-          emit.current?.({ type: "pickup", seat: outcome.collectorSeat, count: outcome.cards.length });
+
+      // Announce as the trick ends, not as the pile clears. This used to sit
+      // inside the timeout below, which meant the banner appeared a second
+      // and a half before its own sound — the two were describing the same
+      // moment from a second and a half apart.
+      if (outcome && announced.current !== outcome) {
+        announced.current = outcome;
+        if (outcome.kind === "discard") emit.current?.({ type: "trickWon", seat: outcome.winnerSeat });
+        else emit.current?.({ type: "pickup", seat: outcome.collectorSeat, count: outcome.cards.length });
+      }
+
+      const clear = () => {
+        // A thulla runs long — up to five seconds of it. Sitting on the pile
+        // until the gag finishes is the point: dealing the next card over
+        // the top of it is what made the sound feel detached from the game.
+        const wait = soundBusyMs();
+        if (wait > 0) {
+          timer.current = setTimeout(clear, wait + 60);
+          return;
         }
         setState((prev) => {
           if (!prev || prev.phase !== "trickEnd") return prev;
@@ -172,7 +190,8 @@ export function useLocalGame(options: LocalGameOptions) {
           if (next.phase === "finished") emit.current?.({ type: "finished", thullaSeat: next.thullaSeat });
           return next;
         });
-      }, scale(1500));
+      };
+      timer.current = setTimeout(clear, scale(1500));
       return clearTimer;
     }
 

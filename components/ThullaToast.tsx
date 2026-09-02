@@ -11,6 +11,9 @@ const SUITS = ["♠", "♥", "♦", "♣", "♠", "♦"];
  * handed and knows nothing about when a thulla happens; `useThulla` owns
  * the timing and the engine owns the event.
  *
+ * It leaves when the gag stops playing, not on a timer of its own: the
+ * notice carries the sound's length and the fade is delayed to meet it.
+ *
  * A banner across the top rather than a card in the middle of the table.
  * It used to sit over the centre of the felt, which put it squarely on top
  * of the trick pile — hiding the one thing the announcement is about. Up
@@ -43,7 +46,11 @@ export function ThullaToast({ notice }: { notice: ThullaNotice | null }) {
         // `key` restarts the animation when a second thulla lands quickly.
         key={notice.key}
         className="anim-thulla relative flex items-center justify-center gap-3 rounded-2xl border-2 border-chili-400/70 bg-ink-900/95 px-4 py-2.5 shadow-[0_22px_50px_-16px_rgba(0,0,0,0.95)] backdrop-blur-sm sm:gap-5 sm:px-6 sm:py-3.5"
-        style={{ willChange: "transform, opacity" }}
+        style={{
+          willChange: "transform, opacity",
+          // Pop in, sit still while the gag plays, fade out as it ends.
+          animationDelay: `0ms, ${Math.max(560, notice.ms - 380)}ms`,
+        }}
       >
         {/* Suit glyphs bursting out from behind the card. */}
         {SUITS.map((suit, i) => {

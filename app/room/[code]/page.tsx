@@ -155,9 +155,9 @@ export default function RoomPage() {
       const who = game.players[o.winnerSeat];
       say(o.winnerSeat === mySeat ? `🏆 ${t("trickWonYou", lang)}` : `🏆 ${phrase.wonTrick(who.name, lang)}`, "good");
     } else {
-      // One sound, not two: the gag is the moment. A riffle underneath it
-      // just doubles up now that these are real recordings.
-      sfx.thulla();
+      // No sound here: `useThulla` plays it, seeded from the trick, as it
+      // raises the banner — so the banner, the gag and the pile clearing
+      // are all the same moment on every device at the table.
       const who = game.players[o.collectorSeat];
       const broke = game.players[o.brokeBySeat];
       say(

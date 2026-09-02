@@ -104,8 +104,9 @@ export default function LocalGamePage() {
           sfx.trickWon();
           break;
         case "pickup":
-          // One sound, not two: the gag is the moment.
-          sfx.thulla();
+          // Silent on purpose. `useThulla` plays the gag, seeded from the
+          // trick, at the moment it puts the banner up — the two are one
+          // event and timing them separately is what pulled them apart.
           break;
         case "out":
           break;

@@ -4,6 +4,7 @@ import { writeResult, type HistoryPlayerInput } from "./recordResult";
 import { TRICK_LINGER_MS, type RoomState } from "./roomTypes";
 import { createSeries, isSeries, isValidBestOf, recordGame } from "./series/rules";
 import { shuffle } from "./engine/cards";
+import { thullaHoldMs } from "./thullaClips";
 
 /**
  * Deals a fresh game into an existing room: same seats, new shuffle, new
@@ -78,15 +79,30 @@ export function maybeResolveTrick(state: RoomState, now = Date.now()): boolean {
   if (state.trickEndsAt !== null && now < state.trickEndsAt) return false;
 
   state.game = resolveTrick(state.game);
-  state.trickEndsAt = state.game.phase === "trickEnd" ? now + TRICK_LINGER_MS : null;
+  state.trickEndsAt = state.game.phase === "trickEnd" ? now + lingerMs(state) : null;
   if (state.game.phase === "finished") state.status = "finished";
   state.updatedAt = now;
   return true;
 }
 
+/**
+ * How long the table sits on a finished trick.
+ *
+ * A thulla holds for as long as its gag plays. The clip is picked from the
+ * trick, not at random, so this works out the same length the browsers will
+ * — the server never touches audio, it just reads the same table they do.
+ * Without this the pile cleared after 1.8s while a five-second gag played on
+ * over the next trick, on every screen at once.
+ */
+function lingerMs(state: RoomState): number {
+  const game = state.game;
+  if (game?.trickOutcome?.kind !== "pickup") return TRICK_LINGER_MS;
+  return Math.max(TRICK_LINGER_MS, thullaHoldMs(`${game.gameId}:${game.trickNumber}`));
+}
+
 /** Marks a newly finished trick so clients know how long to hold the pile. */
 export function markTrickEnd(state: RoomState, now = Date.now()) {
-  if (state.game?.phase === "trickEnd") state.trickEndsAt = now + TRICK_LINGER_MS;
+  if (state.game?.phase === "trickEnd") state.trickEndsAt = now + lingerMs(state);
   else state.trickEndsAt = null;
 }
 

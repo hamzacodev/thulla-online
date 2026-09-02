@@ -336,14 +336,23 @@ body {
 /* Percentages are tuned against the 3900ms duration below: the pop and
    bounce still finish inside the first second, and the extra time is spent
    holding the message on screen rather than slowing the entrance down. */
-@keyframes thulla-pop {
+/* Entry and exit are separate animations because the banner's total length
+   is no longer fixed — it stays up for as long as the gag plays, which is
+   anywhere from 1.3s to 5.2s depending on which clip the trick drew. One
+   percentage-based keyframe would stretch the bounce along with it, so the
+   pop and the fade keep their own fixed durations and only the gap between
+   them varies. The out delay is set inline, from the clip's length. */
+@keyframes thulla-in {
   0%   { opacity: 0; transform: translateY(-14px) scale(0.7) rotate(-3deg); }
-  11%  { opacity: 1; transform: translateY(0) scale(1.06) rotate(1.5deg); }
-  17%  { transform: translateY(0) scale(0.97) rotate(-1deg); }
-  22%  { transform: translateY(0) scale(1.02) rotate(0.5deg); }
-  27%  { transform: translateY(0) scale(1) rotate(0deg); }
-  93%  { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
-  100% { opacity: 0; transform: translateY(-16px) scale(0.92) rotate(0deg); }
+  42%  { opacity: 1; transform: translateY(0) scale(1.06) rotate(1.5deg); }
+  63%  { transform: translateY(0) scale(0.97) rotate(-1deg); }
+  82%  { transform: translateY(0) scale(1.02) rotate(0.5deg); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+}
+
+@keyframes thulla-out {
+  from { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+  to   { opacity: 0; transform: translateY(-16px) scale(0.92) rotate(0deg); }
 }
 
 @keyframes thulla-spark {
@@ -362,7 +371,11 @@ body {
 .anim-riffle { animation: shuffle-riffle 620ms ease-in-out infinite; }
 .anim-cut { animation: deck-cut 700ms var(--ease-card); }
 .anim-fan { animation: fan-out 480ms var(--ease-card) forwards; }
-.anim-thulla { animation: thulla-pop 3900ms var(--ease-card) forwards; }
+/* `backwards` on the pop only: thulla-out must contribute nothing until its
+   delay elapses, or its from-state would paint over the entry. */
+.anim-thulla {
+  animation: thulla-in 560ms var(--ease-card) backwards, thulla-out 380ms var(--ease-card) forwards;
+}
 .anim-spark { animation: thulla-spark 900ms ease-out forwards; }
 
 .think-dot { animation: think-dots 1.25s ease-in-out infinite; }

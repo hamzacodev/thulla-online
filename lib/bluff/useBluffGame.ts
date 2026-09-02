@@ -17,6 +17,7 @@ import type { Rank } from "./cards";
 import { SPEED_FACTOR, type Speed } from "../settings";
 import { readLocal } from "../localKeys";
 import { shuffle } from "../engine/cards";
+import { soundBusyMs } from "../sound";
 
 export interface BluffSeatSetup {
   id: string;
@@ -65,6 +66,8 @@ export function useBluffGame(options: {
   const [notice, setNotice] = useState<string | null>(null);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The outcome we've already narrated — identity, so one reveal sounds once. */
+  const announced = useRef<BluffState["outcome"] | null>(null);
   const introTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emit = useRef(onEvent);
 
@@ -162,13 +165,27 @@ export function useBluffGame(options: {
 
     if (state.phase === "reveal") {
       const outcome = state.outcome;
-      timer.current = setTimeout(() => {
-        if (outcome) {
-          emit.current?.(
-            outcome.caught
-              ? { type: "caught", seat: outcome.claimSeat, pile: outcome.pileSize }
-              : { type: "survived", seat: outcome.challengerSeat, pile: outcome.pileSize }
-          );
+
+      // Announce as the cards turn over, not as they're swept up. This ran
+      // inside the timeout below, so the sound landed two seconds after the
+      // reveal it was reacting to.
+      if (outcome && announced.current !== outcome) {
+        announced.current = outcome;
+        emit.current?.(
+          outcome.caught
+            ? { type: "caught", seat: outcome.claimSeat, pile: outcome.pileSize }
+            : { type: "survived", seat: outcome.challengerSeat, pile: outcome.pileSize }
+        );
+      }
+
+      const clear = () => {
+        // Getting caught plays the thulla gag, which runs up to five
+        // seconds. Hold the reveal until it's finished rather than dealing
+        // the next claim over the top of it.
+        const wait = soundBusyMs();
+        if (wait > 0) {
+          timer.current = setTimeout(clear, wait + 60);
+          return;
         }
         setState((prev) => {
           if (!prev || prev.phase !== "reveal") return prev;
@@ -178,7 +195,8 @@ export function useBluffGame(options: {
           if (next.phase === "finished") emit.current?.({ type: "finished", winnerSeat: next.winnerSeat });
           return next;
         });
-      }, scale(2100));
+      };
+      timer.current = setTimeout(clear, scale(2100));
       return clearTimer;
     }
 
