@@ -3,6 +3,8 @@ import {
   createSeries,
   formatLabel,
   isValidBestOf,
+  mostOften,
+  placingSummary,
   recordGame,
   seriesStandings,
   winsRequired,
@@ -32,12 +34,9 @@ function series(bestOf: number, names = ["Hamza", "Ahmed"]): SeriesState {
 function run(bestOf: number, winners: number[], names?: string[]) {
   let s = series(bestOf, names);
   winners.forEach((seat, i) => {
-    const r = recordGame(s, {
-      gameId: `g${i + 1}`,
-      winnerId: `p${seat}`,
-      winnerName: s.players[seat].name,
-      now: 2_000 + i,
-    });
+    // A full finishing order: the winner, then everybody else in seat order.
+    const order = [`p${seat}`, ...s.players.map((p) => p.id).filter((id) => id !== `p${seat}`)];
+    const r = recordGame(s, { gameId: `g${i + 1}`, order, now: 2_000 + i });
     // A finished series refuses further results; that's the point of the test.
     if (!r.error) s = r.series;
   });
@@ -135,7 +134,7 @@ console.log("No games past the decider");
 {
   const s = run(5, [0, 0, 0]); // 3–0, decided at game 3
   check(s.gamesPlayed === 3, "best of 5 decided 3–0 stops at 3 games");
-  const late = recordGame(s, { gameId: "g4", winnerId: "p1", winnerName: "Ahmed" });
+  const late = recordGame(s, { gameId: "g4", order: ["p1", "p0"] });
   check(!!late.error, `a fourth result is refused — "${late.error}"`);
   check(late.series.gamesPlayed === 3, "…and the series is unchanged");
   check(late.series.players[1].wins === 0, "…the loser gains nothing");
@@ -147,15 +146,15 @@ const b5 = pass;
 console.log("Duplicate protection");
 {
   let s = series(5);
-  s = recordGame(s, { gameId: "g1", winnerId: "p0", winnerName: "Hamza" }).series;
-  const again = recordGame(s, { gameId: "g1", winnerId: "p0", winnerName: "Hamza" });
+  s = recordGame(s, { gameId: "g1", order: ["p0", "p1"] }).series;
+  const again = recordGame(s, { gameId: "g1", order: ["p0", "p1"] });
   check(!again.error, "re-reporting the same game isn't an error");
   check(again.series.gamesPlayed === 1, "…and doesn't count twice");
   check(again.series.players[0].wins === 1, "…the win isn't doubled");
 
   // Two clients reporting the same finish at once.
-  const a = recordGame(s, { gameId: "g2", winnerId: "p1", winnerName: "Ahmed" }).series;
-  const b = recordGame(a, { gameId: "g2", winnerId: "p1", winnerName: "Ahmed" }).series;
+  const a = recordGame(s, { gameId: "g2", order: ["p1", "p0"] }).series;
+  const b = recordGame(a, { gameId: "g2", order: ["p1", "p0"] }).series;
   check(b.gamesPlayed === 2, "a concurrent duplicate lands once");
   check(b.games.filter((g) => g.gameId === "g2").length === 1, "…one record for that game");
   check(auditSeries(b).length === 0, "…audit clean");
@@ -210,6 +209,56 @@ console.log("History reconstruction");
   check(revived.winnerId === "p0" && revived.gamesPlayed === 4, "…with the final result intact");
 }
 console.log(`  ${pass - b8} passed`);
+
+/* ---------- who came 2nd, 3rd, 4th most often ---------- */
+const b9 = pass;
+console.log("Placings");
+{
+  // 4 players, best of 7. Scripted so every place has a clear owner.
+  const names = ["Hamza", "Ahmed", "Ali", "Usman"];
+  let s = series(7, names);
+  const games: string[][] = [
+    ["p0", "p1", "p2", "p3"],
+    ["p1", "p0", "p2", "p3"],
+    ["p0", "p1", "p3", "p2"],
+    ["p2", "p1", "p0", "p3"],
+    ["p0", "p1", "p2", "p3"],
+    ["p0", "p1", "p3", "p2"],
+  ];
+  games.forEach((order, i) => {
+    const r = recordGame(s, { gameId: `pg${i}`, order, now: 5_000 + i });
+    if (!r.error) s = r.series;
+  });
+
+  const hamza = s.players[0];
+  const ahmed = s.players[1];
+  const ali = s.players[2];
+  const usman = s.players[3];
+
+  check(s.status === "completed" && s.winnerId === "p0", "Hamza takes the best of 7");
+  check(hamza.placings[0] === 4, `Hamza came 1st four times (got ${hamza.placings[0]})`);
+  check(ahmed.placings[1] === 5, `Ahmed came 2nd five times (got ${ahmed.placings[1]})`);
+  check(ali.placings[2] === 3, `Ali came 3rd three times (got ${ali.placings[2]})`);
+  check(usman.placings[3] === 4, `Usman came last four times (got ${usman.placings[3]})`);
+
+  check(mostOften(s, 1)[0]?.name === "Ahmed", "Ahmed came 2nd most often");
+  check(mostOften(s, 3)[0]?.name === "Usman", "Usman came last most often");
+
+  const everyone = s.players.every((p) => p.placings.reduce((n, c) => n + c, 0) === s.gamesPlayed);
+  check(everyone, "every player is placed in every game played");
+  check(placingSummary(ahmed).startsWith("1st ×1 · 2nd ×5"), `Ahmed's summary reads "${placingSummary(ahmed)}"`);
+  check(auditSeries(s).length === 0, `audit clean — ${auditSeries(s).join("; ")}`);
+
+  // Level on wins, separated by seconds rather than alphabetically.
+  let t = series(5, ["Zara", "Adil", "Bilal"]);
+  t = recordGame(t, { gameId: "t1", order: ["p0", "p1", "p2"] }).series;
+  t = recordGame(t, { gameId: "t2", order: ["p1", "p2", "p0"] }).series;
+  t = recordGame(t, { gameId: "t3", order: ["p2", "p1", "p0"] }).series;
+  const table = seriesStandings(t);
+  check(table.every((p) => p.wins === 1), "three players level on one win each");
+  check(table[0].name === "Adil", `whoever came 2nd most is first (got ${table[0].name})`);
+}
+console.log(`  ${pass - b9} passed`);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

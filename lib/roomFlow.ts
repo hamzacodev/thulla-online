@@ -3,6 +3,7 @@ import { createGame, resolveTrick, standings } from "./engine/rules";
 import { writeResult, type HistoryPlayerInput } from "./recordResult";
 import { TRICK_LINGER_MS, type RoomState } from "./roomTypes";
 import { createSeries, isSeries, isValidBestOf, recordGame } from "./series/rules";
+import { shuffle } from "./engine/cards";
 
 /**
  * Deals a fresh game into an existing room: same seats, new shuffle, new
@@ -23,8 +24,14 @@ export function dealNewGame(state: RoomState, now = Date.now()): void {
     });
   }
 
+  // Shuffled, so the turn order changes between games of a series. The
+  // room's own `seats` are untouched — those are lobby chairs. Who sits
+  // where at the table is decided per deal, and every screen works out its
+  // own view from the game's players rather than the lobby seat.
   state.game = createGame({
-    players: state.seats.map((s) => ({ id: s.id, name: s.name, kind: "remote" as const })),
+    players: shuffle(
+      state.seats.map((s) => ({ id: s.id, name: s.name, kind: "remote" as const }))
+    ),
     config: { mode: "friends", mustLeadAceOfSpades: true },
   });
   state.status = "playing";
@@ -138,11 +145,9 @@ export async function recordRoomResults(state: RoomState): Promise<void> {
   // keyed on the game's id, so two clients reporting the same finish, or a
   // retry of this whole function, still add exactly one win.
   if (state.series) {
-    const winner = table[0];
     const next = recordGame(state.series, {
       gameId: game.gameId,
-      winnerId: winner ? winner.id : null,
-      winnerName: winner?.name ?? null,
+      order: table.map((p) => p.id),
     });
     if (!next.error) state.series = next.series;
   }

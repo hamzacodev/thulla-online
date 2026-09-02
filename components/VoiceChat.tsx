@@ -166,7 +166,7 @@ export function VoiceChat({
               <span className="flex items-center gap-0.5" aria-live="polite">
                 {talkers.map((p) => (
                   <span key={p.id} title={`${p.name} is talking`}>
-                    <Avatar src={avatars?.[p.id]} name={p.name} size={24} ringClass="ring-mint-300/80" />
+                    <Avatar src={avatars?.[p.userId]} name={p.name} size={24} ringClass="ring-mint-300/80" />
                   </span>
                 ))}
               </span>
@@ -257,7 +257,7 @@ export function VoiceChat({
               <PeerChip
                 key={p.id}
                 peer={p}
-                avatarUrl={avatars?.[p.id]}
+                avatarUrl={avatars?.[p.userId]}
                 onClick={() => voice.toggleSilence(p.id)}
               />
             ))}

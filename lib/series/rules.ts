@@ -60,7 +60,7 @@ export function createSeries(opts: {
   }
 
   return {
-    version: 1,
+    version: 2,
     id: opts.id ?? newSeriesId(),
     game,
     bestOf,
@@ -68,7 +68,7 @@ export function createSeries(opts: {
     status: "active",
     currentGameNumber: 1,
     gamesPlayed: 0,
-    players: players.map((p) => ({ ...p, wins: 0 })),
+    players: players.map((p) => ({ ...p, wins: 0, placings: new Array(players.length).fill(0) })),
     games: [],
     winnerId: null,
     createdAt: now,
@@ -87,9 +87,20 @@ export function createSeries(opts: {
  */
 export function recordGame(
   seriesIn: SeriesState,
-  result: { gameId: string; winnerId: string | null; winnerName: string | null; now?: number }
+  result: {
+    gameId: string;
+    /**
+     * Everyone, best first. The whole finishing order rather than just the
+     * winner, because coming second four times running is a real result and
+     * a series that only counts firsts can't tell you that.
+     */
+    order: string[];
+    winnerName?: string | null;
+    now?: number;
+  }
 ): SeriesResult {
-  const { gameId, winnerId, winnerName, now = Date.now() } = result;
+  const { gameId, order, now = Date.now() } = result;
+  const winnerId = order[0] ?? null;
 
   if (seriesIn.games.some((g) => g.gameId === gameId)) {
     // Already counted. Not an error — the caller is allowed to be careless.
@@ -106,10 +117,25 @@ export function recordGame(
   };
 
   const gameNumber = series.gamesPlayed + 1;
-  series.games.push({ gameNumber, gameId, winnerId, winnerName, completedAt: now });
+  const winner = winnerId ? series.players.find((p) => p.id === winnerId) : undefined;
+
+  series.games.push({
+    gameNumber,
+    gameId,
+    order: [...order],
+    winnerId,
+    winnerName: result.winnerName ?? winner?.name ?? null,
+    completedAt: now,
+  });
   series.gamesPlayed = gameNumber;
 
-  const winner = winnerId ? series.players.find((p) => p.id === winnerId) : undefined;
+  // Every place, not only the first.
+  order.forEach((playerId, place) => {
+    const p = series.players.find((x) => x.id === playerId);
+    if (!p) return;
+    while (p.placings.length < series.players.length) p.placings.push(0);
+    if (place < p.placings.length) p.placings[place] += 1;
+  });
   if (winner) winner.wins += 1;
 
   if (winner && winner.wins >= series.winsRequired) {
@@ -128,9 +154,42 @@ export function recordGame(
   return { series };
 }
 
-/** Best first, then by name so the order is stable between renders. */
+/**
+ * Best first. Wins decide it; after that, whoever came second more often is
+ * ahead of whoever came last more often, and so on down the table — so two
+ * players level on wins are separated by how they actually finished rather
+ * than alphabetically.
+ */
 export function seriesStandings(series: SeriesState): SeriesPlayer[] {
-  return [...series.players].sort((a, b) => b.wins - a.wins || a.name.localeCompare(b.name));
+  return [...series.players].sort((a, b) => {
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    const depth = Math.max(a.placings.length, b.placings.length);
+    for (let place = 1; place < depth; place++) {
+      const diff = (b.placings[place] ?? 0) - (a.placings[place] ?? 0);
+      if (diff !== 0) return diff;
+    }
+    return a.name.localeCompare(b.name);
+  });
+}
+
+/** "1st ×3 · 2nd ×2 · 4th ×1" — how somebody's series actually went. */
+export function placingSummary(player: SeriesPlayer): string {
+  const suffix = (n: number) => {
+    const k = n + 1;
+    return `${k}${k === 1 ? "st" : k === 2 ? "nd" : k === 3 ? "rd" : "th"}`;
+  };
+  return player.placings
+    .map((count, place) => ({ count, place }))
+    .filter((x) => x.count > 0)
+    .map((x) => `${suffix(x.place)} ×${x.count}`)
+    .join(" · ");
+}
+
+/** Who came Nth most often. Empty when nobody has finished there. */
+export function mostOften(series: SeriesState, place: number): SeriesPlayer[] {
+  const best = Math.max(0, ...series.players.map((p) => p.placings[place] ?? 0));
+  if (best === 0) return [];
+  return series.players.filter((p) => (p.placings[place] ?? 0) === best);
 }
 
 /** How many more wins this player needs. */
@@ -181,6 +240,19 @@ export function auditSeries(series: SeriesState): string[] {
       problems.push(`${p.name} has ${p.wins} wins but won ${tallied.get(p.id) ?? 0} games`);
     }
     if (p.wins > series.winsRequired) problems.push(`${p.name} has more wins than the series needs`);
+    if ((p.placings[0] ?? 0) !== p.wins) {
+      problems.push(`${p.name}'s firsts (${p.placings[0] ?? 0}) don't match their wins (${p.wins})`);
+    }
+    const placed = p.placings.reduce((n, c) => n + c, 0);
+    if (placed !== series.gamesPlayed) {
+      problems.push(`${p.name} is placed in ${placed} games but ${series.gamesPlayed} were played`);
+    }
+  }
+  for (const g of series.games) {
+    if (new Set(g.order).size !== g.order.length) problems.push(`game ${g.gameNumber} places a player twice`);
+    if (g.order.length !== series.players.length) {
+      problems.push(`game ${g.gameNumber} placed ${g.order.length} of ${series.players.length} players`);
+    }
   }
 
   if (series.status === "completed") {

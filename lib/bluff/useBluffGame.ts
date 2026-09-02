@@ -16,6 +16,7 @@ import type { BluffDifficulty, BluffState } from "./types";
 import type { Rank } from "./cards";
 import { SPEED_FACTOR, type Speed } from "../settings";
 import { readLocal } from "../localKeys";
+import { shuffle } from "../engine/cards";
 
 export interface BluffSeatSetup {
   id: string;
@@ -87,8 +88,10 @@ export function useBluffGame(options: {
     if (seats.length < 2) return;
     clearTimer();
     clearIntro();
+    // A fresh arrangement every deal, for the same reason as Thulla: seats
+    // move, identities don't.
     const next = createBluffGame({
-      players: seats,
+      players: shuffle(seats),
       config: { deckCount, difficulty, mode: "cpu" },
     });
     setState(next);

@@ -84,7 +84,10 @@ export type VoiceStatus = "off" | "starting" | "live" | "error";
 export type PeerState = "connecting" | "live" | "retrying" | "relaying" | "failed";
 
 export interface VoicePeer {
+  /** Identifies the connection: one per open tab. */
   id: string;
+  /** Identifies the person: used for their seat, name and face. */
+  userId: string;
   name: string;
   state: PeerState;
   /** They muted their own microphone — everyone can see this. */
@@ -120,8 +123,26 @@ export interface VoiceControls {
   setTalking: (on: boolean) => void;
 }
 
+/**
+ * One entry per open tab, not per person.
+ *
+ * Peers used to be keyed by user id, which quietly broke two ordinary
+ * things. Reload the page and your old presence lingers until the server
+ * times it out, so everybody else keeps a dead peer connection under the
+ * same key and never rebuilds it — your new session's offer arrives at a
+ * connection that isn't closed or failed, and the audio comes back one-way
+ * or not at all. Open two tabs and both of them claim the same key.
+ *
+ * Both of those also *sound* like echo, because a stale connection and a
+ * live one deliver the same voice twice.
+ *
+ * `key` is per page load, so a reload is simply a new peer and the old one
+ * disappears. `userId` is still carried, because seats, names and faces
+ * belong to the person rather than the tab.
+ */
 interface PresenceMeta {
-  id: string;
+  key: string;
+  userId: string;
   name: string;
   muted: boolean;
 }
@@ -134,6 +155,7 @@ type Signal =
 interface Link {
   pc: RTCPeerConnection;
   stream: MediaStream | null;
+  userId: string;
   name: string;
   muted: boolean;
   state: PeerState;
@@ -207,6 +229,14 @@ export function useVoice({
   const startingRef = useRef(false);
   const membersRef = useRef(members);
   const idRef = useRef(userId);
+  /**
+   * This tab's identity on the call. Generated once per page load, so a
+   * reload is a genuinely new peer rather than a second claim on the old
+   * one — which is what left everybody else holding a dead connection.
+   */
+  const sessionRef = useRef("");
+  /** Presence keys currently allowed to signal us — seated, and on the call. */
+  const allowedRef = useRef(new Set<string>());
   const timersRef = useRef<{ level?: number; sweep?: number }>({});
   const hangUpRef = useRef<() => void>(() => {});
   const lastSignature = useRef("");
@@ -232,6 +262,24 @@ export function useVoice({
   const nameFor = (id: string, fallback: string) =>
     membersRef.current.find((m) => m.id === id)?.name ?? fallback;
 
+  /**
+   * Minted on first use rather than during render — a random value computed
+   * while rendering isn't stable across React's re-renders, and this one has
+   * to be the same for the whole life of the tab.
+   */
+  const sessionId = () => {
+    if (!sessionRef.current) {
+      sessionRef.current =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `s-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e9).toString(36)}`;
+    }
+    return sessionRef.current;
+  };
+
+  /** This tab's key on the call: the person, plus which tab they're in. */
+  const myKey = () => `${idRef.current ?? "anon"}::${sessionId()}`;
+
   /** Whether the mic should currently be open, given mute and push-to-talk. */
   const shouldTransmit = () =>
     !mutedRef.current && (!pushToTalkRef.current || talkingRef.current);
@@ -252,6 +300,7 @@ export function useVoice({
     linksRef.current.forEach((link, id) => {
       list.push({
         id,
+        userId: link.userId,
         name: link.name,
         state: link.state,
         muted: link.muted,
@@ -265,7 +314,9 @@ export function useVoice({
     const signature = list
       .map(
         (p) =>
-          `${p.id}:${p.name}:${p.state}:${+p.muted}${+p.silenced}${+p.speaking}${p.stream ? 1 : 0}`
+          `${p.id}:${p.userId}:${p.name}:${p.state}:${+p.muted}${+p.silenced}${+p.speaking}${
+            p.stream ? 1 : 0
+          }`
       )
       .join("|");
     if (signature === lastSignature.current) return;
@@ -322,8 +373,8 @@ export function useVoice({
 
   const offerTo = async (peerId: string, iceRestart = false) => {
     const link = linksRef.current.get(peerId);
-    const me = idRef.current;
-    if (!link || !me) return;
+    if (!link || !idRef.current) return;
+    const me = myKey();
     try {
       const offer = await link.pc.createOffer({ iceRestart });
       await link.pc.setLocalDescription(offer);
@@ -341,8 +392,8 @@ export function useVoice({
    */
   const recover = (peerId: string) => {
     const link = linksRef.current.get(peerId);
-    const me = idRef.current;
-    if (!link || !me) return;
+    if (!link || !idRef.current) return;
+    const me = myKey();
 
     const isCaller = me < peerId;
     link.attempts++;
@@ -368,7 +419,7 @@ export function useVoice({
       const name = link.name;
       const muted = link.muted;
       closeLink(peerId);
-      const fresh = ensureLink(peerId, { id: peerId, name, muted }, true);
+      const fresh = ensureLink(peerId, { key: peerId, userId: link.userId, name, muted }, true);
       fresh.attempts = attempts;
       fresh.state = "relaying";
       publish();
@@ -391,7 +442,8 @@ export function useVoice({
     const link: Link = {
       pc,
       stream: null,
-      name: nameFor(peerId, meta?.name ?? "Player"),
+      userId: meta?.userId ?? peerId,
+      name: nameFor(meta?.userId ?? peerId, meta?.name ?? "Player"),
       muted: meta?.muted ?? false,
       state: relayOnly ? "relaying" : "connecting",
       attempts: 0,
@@ -407,9 +459,8 @@ export function useVoice({
     if (local) local.getTracks().forEach((track) => pc.addTrack(track, local));
 
     pc.onicecandidate = (ev) => {
-      const me = idRef.current;
-      if (!ev.candidate || !me) return;
-      send({ kind: "ice", from: me, to: peerId, candidate: ev.candidate.toJSON() });
+      if (!ev.candidate || !idRef.current) return;
+      send({ kind: "ice", from: myKey(), to: peerId, candidate: ev.candidate.toJSON() });
     };
 
     pc.ontrack = (ev) => {
@@ -454,11 +505,13 @@ export function useVoice({
   };
 
   const onSignal = async (signal: Signal) => {
-    const me = idRef.current;
-    if (!me || !liveRef.current || signal.to !== me || signal.from === me) return;
+    const me = myKey();
+    if (!idRef.current || !liveRef.current || signal.to !== me || signal.from === me) return;
     // Only people holding a seat at this table get a connection, so knowing
-    // the room code is not enough to listen in.
-    if (!membersRef.current.some((m) => m.id === signal.from)) return;
+    // the room code is not enough to listen in. The allowed set is rebuilt
+    // from presence on every sync, so it is always the seated players
+    // currently on the call — never a stale key from a closed tab.
+    if (!allowedRef.current.has(signal.from)) return;
 
     if (signal.kind === "ice") {
       const link = linksRef.current.get(signal.from);
@@ -517,21 +570,27 @@ export function useVoice({
    */
   const reconcile = () => {
     const channel = channelRef.current;
-    const me = idRef.current;
-    if (!channel || !me) return;
+    if (!channel || !idRef.current) return;
+    const me = myKey();
 
+    // Keyed by presence key — one entry per open tab — so a reloaded player
+    // arrives as a new peer and their old one simply isn't here any more.
     const present = new Map<string, PresenceMeta>();
-    Object.values(channel.presenceState<PresenceMeta>()).forEach((metas) => {
+    Object.entries(channel.presenceState<PresenceMeta>()).forEach(([key, metas]) => {
       const meta = metas[metas.length - 1];
-      if (!meta?.id) return;
-      if (!membersRef.current.some((m) => m.id === meta.id)) return;
-      present.set(meta.id, meta);
+      if (!meta?.userId) return;
+      if (!membersRef.current.some((m) => m.id === meta.userId)) return;
+      present.set(key, { ...meta, key });
     });
+    allowedRef.current = new Set(present.keys());
 
     // The roster is public: you can see there's a conversation to join
-    // without opening your own microphone first.
+    // without opening your own microphone first. Collapsed to one line per
+    // person, so somebody with two tabs open isn't listed twice.
+    const seen = new Set<string>();
     const roster = Array.from(present.values())
-      .map((meta) => ({ id: meta.id, name: nameFor(meta.id, meta.name) }))
+      .filter((meta) => !seen.has(meta.userId) && seen.add(meta.userId))
+      .map((meta) => ({ id: meta.userId, name: nameFor(meta.userId, meta.name) }))
       .sort((a, b) => a.name.localeCompare(b.name));
     const rosterKey = roster.map((r) => `${r.id}:${r.name}`).join("|");
     if (rosterKey !== lastRoster.current) {
@@ -546,10 +605,10 @@ export function useVoice({
     });
 
     present.forEach((meta, id) => {
-      if (id === me) return;
+      if (id === myKey()) return;
       const existing = linksRef.current.get(id);
       if (existing) {
-        existing.name = nameFor(id, meta.name);
+        existing.name = nameFor(meta.userId, meta.name);
         existing.muted = meta.muted;
         if (existing.pc.connectionState === "closed") closeLink(id);
         else return;
@@ -689,7 +748,8 @@ export function useVoice({
     setStatus("live");
 
     void channel.track({
-      id: userId,
+      key: myKey(),
+      userId,
       name: nameFor(userId, "Player"),
       muted: mutedRef.current,
     } satisfies PresenceMeta);
@@ -703,7 +763,8 @@ export function useVoice({
     const me = idRef.current;
     if (!channelRef.current || !me || !liveRef.current) return;
     void channelRef.current.track({
-      id: me,
+      key: myKey(),
+      userId: me,
       name: nameFor(me, "Player"),
       muted: mutedRef.current,
     } satisfies PresenceMeta);
@@ -763,7 +824,11 @@ export function useVoice({
     if (!available || !code || !userId) return;
 
     const channel = supabase.channel(`voice-${code}`, {
-      config: { broadcast: { self: false }, presence: { key: userId, enabled: true } },
+      config: {
+        broadcast: { self: false },
+        // Per tab, so two tabs are two peers and a reload replaces nothing.
+        presence: { key: `${userId}::${sessionId()}`, enabled: true },
+      },
     });
     channelRef.current = channel;
 
@@ -790,6 +855,24 @@ export function useVoice({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the handlers read refs; re-subscribing on every render would churn the socket
   }, [available, code, userId]);
+
+  /**
+   * Tell the room we've gone before the tab closes.
+   *
+   * Without this the server carries a dead presence entry for up to half a
+   * minute, and everyone else keeps a peer connection to a tab that no
+   * longer exists — the thing that made a reload take the audio down with
+   * it. `pagehide` rather than `beforeunload` because Safari on iOS doesn't
+   * reliably fire the latter.
+   */
+  useEffect(() => {
+    const bye = () => {
+      const channel = channelRef.current;
+      if (channel && liveRef.current) void channel.untrack();
+    };
+    window.addEventListener("pagehide", bye);
+    return () => window.removeEventListener("pagehide", bye);
+  }, []);
 
   const stableJoin = useCallback(() => void joinRef.current(), []);
   const stableLeave = useCallback(() => hangUpRef.current(), []);

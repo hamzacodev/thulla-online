@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { chooseCard, thinkingDelay } from "./engine/ai";
 import { MIN_PLAYERS, applyPlay, createGame, legalMoves, rejectionReason, resolveTrick } from "./engine/rules";
+import { shuffle } from "./engine/cards";
 import type { Difficulty, EnginePlayer, GameState } from "./engine/types";
 import type { Card } from "./engine/cards";
 import { SPEED_FACTOR, type Speed } from "./settings";
@@ -73,8 +74,11 @@ export function useLocalGame(options: LocalGameOptions) {
     if (seats.length < MIN_PLAYERS) return;
     clearTimer();
     clearIntro();
+    // A fresh arrangement every deal, so the same person isn't always to
+    // your left. Each seat keeps its own `id`, which is what the series
+    // scores against — a seat number names a chair, not a player.
     const next = createGame({
-      players: seats,
+      players: shuffle(seats),
       config: { difficulty, mustLeadAceOfSpades: true, mode: "cpu" },
     });
     setState(next);

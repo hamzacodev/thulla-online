@@ -19,7 +19,7 @@ export function loadSeries(game: SeriesGameId): SeriesState | null {
     const raw = readLocal(keyFor(game));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SeriesState;
-    if (parsed?.version !== 1 || parsed.game !== game) return null;
+    if (parsed?.version !== 2 || parsed.game !== game) return null;
     return parsed;
   } catch {
     return null;

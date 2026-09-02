@@ -75,7 +75,15 @@ export default function RoomPage() {
   const optimisticBase = useRef<number | null>(null);
 
   const game = optimistic ?? state?.game ?? null;
-  const mySeat = state?.seats.find((s) => s.id === userId)?.seat ?? -1;
+
+  /**
+   * Where you are *at the table*, which is not the same as your seat in the
+   * lobby. Seating is reshuffled on every deal, so the lobby chair only
+   * tells us you're in the room — the table's own player order is what the
+   * hand, the legal moves and the view are drawn from.
+   */
+  const lobbySeat = state?.seats.find((s) => s.id === userId)?.seat ?? -1;
+  const mySeat = game ? game.players.findIndex((p) => p.id === userId) : lobbySeat;
   const myName = state?.seats.find((s) => s.id === userId)?.name ?? "You";
 
   // Voice chat is offered to everyone holding a seat, and only to them —
@@ -90,14 +98,14 @@ export default function RoomPage() {
     members,
     available: settings.voice,
   });
-  const showVoice = settings.voice && mySeat >= 0;
+  const showVoice = settings.voice && lobbySeat >= 0;
 
   // Faces for everyone at the table, so a room of usernames is a room of
   // people. Looked up by id, so it works for the lobby and the game alike.
   const avatars = useAvatars(members.map((m) => m.id));
 
   const chat = useRoomChat({ code: code || null, userId, name: myName, members });
-  const showChat = mySeat >= 0;
+  const showChat = lobbySeat >= 0;
 
   // In the lobby the chat is always on screen, so nothing is ever unread.
   // During a game the drawer says when it's being looked at.
@@ -266,7 +274,7 @@ export default function RoomPage() {
     );
   }
 
-  if (mySeat < 0) {
+  if (lobbySeat < 0) {
     return (
       <main className="grid min-h-dvh place-items-center px-4 text-center">
         <div className="panel p-6">

@@ -224,12 +224,11 @@ export default function LocalGamePage() {
     if (scored.current === state.gameId) return;
     scored.current = state.gameId;
 
-    const winner = state.finishOrder.length ? state.players[state.finishOrder[0]] : null;
-    const next = recordGame(series, {
-      gameId: state.gameId,
-      winnerId: winner ? `seat-${winner.seat}` : null,
-      winnerName: winner?.name ?? null,
-    });
+    // The whole finishing order, keyed by each player's own id rather than
+    // their seat — seats are reshuffled every game, so a seat number names a
+    // chair, not a person.
+    const order = state.finishOrder.map((seat) => state.players[seat].id);
+    const next = recordGame(series, { gameId: state.gameId, order });
     if (next.error) return;
     saveSeries(next.series);
     // Reacting to a one-shot engine event and mirroring what was just
@@ -279,7 +278,7 @@ export default function LocalGamePage() {
         <main className="felt flex min-h-dvh flex-col items-center justify-center px-4 py-8">
           <SeriesComplete
             series={series}
-            meId={`seat-${humanSeat}`}
+            meId={state.players[humanSeat]?.id}
             avatars={avatars}
             historyHref="/games/thulla/history"
             onPlayAgain={() => {
@@ -316,7 +315,7 @@ export default function LocalGamePage() {
             series ? (
               <SeriesInterval
                 series={series}
-                meId={`seat-${humanSeat}`}
+                meId={state.players[humanSeat]?.id}
                 avatars={avatars}
                 onNextGame={() => {
                   recorded.current = null;
@@ -347,7 +346,7 @@ export default function LocalGamePage() {
 
       </header>
 
-      {series && <SeriesTableStrip series={series} meId={`seat-${humanSeat}`} />}
+      {series && <SeriesTableStrip series={series} meId={state.players[humanSeat]?.id} />}
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <GameTable

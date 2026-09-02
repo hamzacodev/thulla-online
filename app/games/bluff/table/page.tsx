@@ -12,6 +12,7 @@ import { Toast, type ToastMessage } from "@/components/Toast";
 import { useBluffGame, type BluffEvent } from "@/lib/bluff/useBluffGame";
 import { loadBluffSetup, type BluffTableSetup } from "@/lib/bluff/setup";
 import { buildBluffPayload, recordBluffGame } from "@/lib/bluff/record";
+import { bluffStandings } from "@/lib/bluff/rules";
 import { claimLabel, type Rank } from "@/lib/bluff/cards";
 import { useAuth } from "@/lib/useAuth";
 import { useAvatars } from "@/lib/useAvatars";
@@ -173,13 +174,10 @@ export default function BluffTablePage() {
     if (scored.current === state.gameId) return;
     scored.current = state.gameId;
 
-    const winnerSeat = state.winnerSeat;
-    const winner = winnerSeat !== null ? state.players[winnerSeat] : null;
-    const next = recordGame(series, {
-      gameId: state.gameId,
-      winnerId: winner ? `seat-${winner.seat}` : null,
-      winnerName: winner?.name ?? null,
-    });
+    // The whole finishing order, by player id — seats are reshuffled each
+    // game, so a seat number names a chair rather than a person.
+    const order = bluffStandings(state).map((p) => p.id);
+    const next = recordGame(series, { gameId: state.gameId, order });
     if (next.error) return;
     saveSeries(next.series);
     // Reacting to a one-shot engine event and mirroring what was just
@@ -208,7 +206,7 @@ export default function BluffTablePage() {
         <main className="felt flex min-h-dvh flex-col items-center justify-center px-4 py-8">
           <SeriesComplete
             series={series}
-            meId={`seat-${humanSeat}`}
+            meId={state.players[humanSeat]?.id}
             avatars={seatAvatars}
             historyHref="/games/bluff/history"
             onPlayAgain={() => {
@@ -248,7 +246,7 @@ export default function BluffTablePage() {
             series ? (
               <SeriesInterval
                 series={series}
-                meId={`seat-${humanSeat}`}
+                meId={state.players[humanSeat]?.id}
                 avatars={seatAvatars}
                 onNextGame={() => {
                   recorded.current = null;
@@ -309,7 +307,7 @@ export default function BluffTablePage() {
         </button>
       </header>
 
-      {series && <SeriesTableStrip series={series} meId={`seat-${humanSeat}`} />}
+      {series && <SeriesTableStrip series={series} meId={state.players[humanSeat]?.id} />}
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         {state.phase === "reveal" && state.outcome && (
