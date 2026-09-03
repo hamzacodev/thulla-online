@@ -161,6 +161,46 @@ with checks as (
            where pubname = 'supabase_realtime'
              and schemaname = 'public' and tablename = 'rooms'
          )
+
+  -- Trump-Patta needs no tables of its own. These four rows are the reason
+  -- why: the results table is already keyed by game, `details` is jsonb and
+  -- takes the two cards that decided the game, the per-game stats function
+  -- takes the game as an argument, and nothing constrains which games are
+  -- allowed. If all four read OK, Trump-Patta records and reports with no
+  -- migration at all.
+  union all
+  select 'game_results.game column (Trump-Patta rows need it)',
+         exists (
+           select 1 from information_schema.columns
+           where table_schema = 'public' and table_name = 'game_results'
+             and column_name = 'game'
+         )
+
+  union all
+  select 'game_results.details is jsonb (holds the two cards)',
+         exists (
+           select 1 from information_schema.columns
+           where table_schema = 'public' and table_name = 'game_results'
+             and column_name = 'details' and data_type = 'jsonb'
+         )
+
+  union all
+  select 'get_game_stats(uuid, text) exists',
+         exists (
+           select 1 from pg_proc p
+           join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public' and p.proname = 'get_game_stats'
+         )
+
+  union all
+  select 'nothing restricts which games may be recorded',
+         not exists (
+           select 1 from pg_constraint c
+           join pg_class t on t.oid = c.conrelid
+           where t.relname = 'game_results'
+             and c.contype = 'c'
+             and pg_get_constraintdef(c.oid) ilike '%game%in%('
+         )
 )
 select
   case when ok then 'OK' else 'MISSING' end as status,

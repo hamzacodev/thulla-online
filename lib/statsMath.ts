@@ -24,7 +24,13 @@ export interface GameRecord {
   /** Which game this was. Absent on rows written before Bluff existed. */
   game?: string;
   /** Whatever only that game tracks — Bluff's challenge counters. */
-  details?: Record<string, number> | null;
+  /**
+   * Whatever is true of one game and no other — Bluff's deck count and
+   * challenge counters, Trump-Patta's Thief and the two cards that decided
+   * it. Strings as well as numbers: the column is jsonb, and it was only
+   * this type that insisted on numbers.
+   */
+  details?: Record<string, number | string> | null;
   id: string;
   gameId: string;
   mode: GameMode;

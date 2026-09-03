@@ -13,6 +13,7 @@ import {
   type HistoryFilter,
   type HistorySort,
 } from "@/lib/gameHistory";
+import { gameSlug, getGame } from "@/lib/games";
 
 /**
  * The paged, filterable list of finished games.
@@ -35,6 +36,9 @@ const FILTERS: Array<{ id: HistoryFilter; label: string }> = [
 ];
 
 export function HistoryBrowser({ gameId = "thulla" }: { gameId?: string }) {
+  // A game's stored id isn't always its URL segment — Trump-Patta is
+  // `trump_patta` in the database and `trump-patta` in a link.
+  const playSlug = gameSlug(getGame(gameId) ?? { id: gameId } as never);
   const { userId, loading: authLoading } = useAuth();
   const [filter, setFilter] = useState<HistoryFilter>("all");
   const [sort, setSort] = useState<HistorySort>("newest");
@@ -133,7 +137,7 @@ export function HistoryBrowser({ gameId = "thulla" }: { gameId?: string }) {
             {filter === "all" && (
               <>
                 <p className="mt-1 text-sm text-cream-400">Chalo bhai, pehli game shuru karo 😎</p>
-                <Link href={`/games/${gameId}/play?mode=cpu`} className="btn btn-primary mt-4 w-full">
+                <Link href={`/games/${playSlug}/play?mode=cpu`} className="btn btn-primary mt-4 w-full">
                   Play Your First Game
                 </Link>
               </>

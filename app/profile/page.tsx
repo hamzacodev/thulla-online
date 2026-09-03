@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { AvatarPicker } from "@/components/AvatarPicker";
-import { GAMES } from "@/lib/games";
+import { GAMES, gameSlug } from "@/lib/games";
 import { HistoryCard } from "@/components/HistoryCard";
 import { StatTile, StreakRow, WinRateBar, statsQuip } from "@/components/StatTiles";
 import { useAuth } from "@/lib/useAuth";
@@ -130,8 +130,10 @@ export default function ProfilePage() {
               <StatTile value={stats.friendGames} label="With Friends" icon="👥" />
             </section>
 
-            {/* By game. One entry today, but the shape is the point: a
-                record belongs to a game, not to the account. */}
+            {/* By game: a record belongs to a game, not to the account.
+                The numbers themselves live on each game's own stats page —
+                these rows used to print the account-wide totals against
+                every game, which read as a per-game record and wasn't one. */}
             <section className="mt-6">
               <h2 className="mb-2 text-sm font-semibold text-cream-100">By game</h2>
               <div className="space-y-2">
@@ -139,14 +141,14 @@ export default function ProfilePage() {
                   game.status === "available" ? (
                     <Link
                       key={game.id}
-                      href={`/games/${game.id}/stats`}
+                      href={`/games/${gameSlug(game)}/stats`}
                       className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3 transition-colors hover:border-brass-400/40"
                     >
                       <span aria-hidden className="text-xl">{game.emoji}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold text-cream-50">{game.name}</span>
-                        <span className="tabular block text-xs text-cream-400">
-                          {stats.games} games · {stats.wins} wins · {formatWinRate(stats)}
+                        <span className="block text-xs text-cream-400">
+                          {game.kind} · your record →
                         </span>
                       </span>
                       <span aria-hidden className="text-cream-400/50">→</span>

@@ -82,7 +82,13 @@ interface RemoteRow {
   id: string;
   game_id: string;
   game?: string | null;
-  details?: Record<string, number> | null;
+  /**
+   * Whatever is true of one game and no other — Bluff's deck count and
+   * challenge counters, Trump-Patta's Thief and the two cards that decided
+   * it. Strings as well as numbers: the column is jsonb, and it was only
+   * this type that insisted on numbers.
+   */
+  details?: Record<string, number | string> | null;
   mode: GameMode;
   player_count: number;
   cpu_difficulty: Difficulty | null;

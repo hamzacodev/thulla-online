@@ -3,11 +3,12 @@
  *
  * Deliberately game-agnostic. It knows nothing about tricks, claims, decks
  * or suits — only that games finish and somebody wins them. That is what
- * lets Thulla and Bluff share it while their engines stay completely
- * separate, and what will let a third game use it without changes.
+ * lets Thulla, Bluff and Trump-Patta share it while their engines stay
+ * completely separate: adding the third game needed one word here and
+ * nothing at all in `rules.ts`.
  */
 
-export type SeriesGameId = "thulla" | "bluff";
+export type SeriesGameId = "thulla" | "bluff" | "trump_patta";
 export type SeriesStatus = "active" | "completed";
 
 export interface SeriesPlayer {

@@ -14,12 +14,23 @@ import type { Card } from "./engine/cards";
  * shape can grow when a second game actually arrives.
  */
 
-export type GameId = "thulla" | "bluff" | "teen-patti";
+export type GameId = "thulla" | "bluff" | "trump_patta" | "teen-patti";
 
 export type GameStatus = "available" | "coming-soon";
 
 export interface GameDefinition {
+  /**
+   * The game's identity everywhere it is stored: the `game` column on a
+   * result row, the series it belongs to, its localStorage buckets. Never
+   * changes once games have been recorded under it.
+   */
   id: GameId;
+  /**
+   * The URL segment, when it differs from the id. Trump-Patta is stored as
+   * `trump_patta` and lives at `/games/trump-patta` — an underscore is fine
+   * in a database and ugly in a link.
+   */
+  slug?: string;
   /** What the game is called on a card and in a heading. */
   name: string;
   /** The other name people know it by, shown underneath. */
@@ -89,6 +100,25 @@ export const GAMES: GameDefinition[] = [
     ],
   },
   {
+    id: "trump_patta",
+    slug: "trump-patta",
+    name: "Trump-Patta",
+    subtitle: "Trump-Patta",
+    blurb: "One card is hidden before the deal. Don't be the one left holding its partner.",
+    hook: "Aakhri patta jiske paas, wohi Thulla!",
+    emoji: "🥷",
+    kind: "Matching",
+    minPlayers: 2,
+    maxPlayers: 8,
+    status: "available",
+    href: "/games/trump-patta",
+    art: ["KS", "KH", "9C"],
+    quickPlay: [
+      { href: "/games/trump-patta/play?mode=cpu", label: "vs Computer", icon: "🤖" },
+      { href: "/games/trump-patta/play?mode=friends", label: "With Friends", icon: "👥" },
+    ],
+  },
+  {
     id: "teen-patti",
     name: "3 Patti",
     subtitle: "Teen Patti",
@@ -105,6 +135,11 @@ export const GAMES: GameDefinition[] = [
 
 export function getGame(id: string): GameDefinition | undefined {
   return GAMES.find((g) => g.id === id);
+}
+
+/** The URL segment for a game: its slug when it has one, else its id. */
+export function gameSlug(game: GameDefinition): string {
+  return game.slug ?? game.id;
 }
 
 export const playableGames = () =>

@@ -42,11 +42,17 @@ export default function BluffStatsPage() {
     for (const r of recent) {
       const d = r.details;
       if (!d) continue;
-      sum.bluffsCalled += d.bluffsCalled ?? 0;
-      sum.successfulCalls += d.successfulCalls ?? 0;
-      sum.failedCalls += d.failedCalls ?? 0;
-      sum.successfulBluffs += d.successfulBluffs ?? 0;
-      sum.timesCaught += d.timesCaught ?? 0;
+      // `details` is jsonb and now carries strings for other games, so read
+      // the counters as numbers rather than trusting the field's type.
+      const n = (key: string) => {
+        const v = Number(d[key]);
+        return Number.isFinite(v) ? v : 0;
+      };
+      sum.bluffsCalled += n("bluffsCalled");
+      sum.successfulCalls += n("successfulCalls");
+      sum.failedCalls += n("failedCalls");
+      sum.successfulBluffs += n("successfulBluffs");
+      sum.timesCaught += n("timesCaught");
     }
     return sum;
   }, [recent]);

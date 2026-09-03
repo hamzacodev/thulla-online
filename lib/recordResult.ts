@@ -24,7 +24,13 @@ export interface ResultRow {
    */
   game?: string;
   /** Anything only one game tracks — Bluff's challenge counters. */
-  details?: Record<string, number> | null;
+  /**
+   * Whatever is true of one game and no other — Bluff's deck count and
+   * challenge counters, Trump-Patta's Thief and the two cards that decided
+   * it. Strings as well as numbers: the column is jsonb, and it was only
+   * this type that insisted on numbers.
+   */
+  details?: Record<string, number | string> | null;
   mode: "cpu" | "friends";
   playerCount: number;
   cpuDifficulty: string | null;

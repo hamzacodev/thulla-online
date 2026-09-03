@@ -14,9 +14,31 @@ export function relativeDay(iso: string): string {
   return then.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
+/**
+ * What each game calls coming last.
+ *
+ * `is_thulla` is the shared column for it — every game here has exactly one
+ * loser — but the word isn't shared: Bluff's is plain last place and
+ * Trump-Patta's is the Thief. Calling a Trump-Patta loss a "Thulla" is
+ * simply the wrong game's vocabulary.
+ */
+export function loserName(game?: string | null): { text: string; icon: string } {
+  switch (game) {
+    case "trump_patta":
+      return { text: "Thief", icon: "🥷" };
+    case "bluff":
+      return { text: "Last", icon: "😅" };
+    default:
+      return { text: "Thulla", icon: "😂" };
+  }
+}
+
 export function outcomeLabel(r: GameRecord): { text: string; icon: string; tone: string } {
   if (r.isWin) return { text: "Won", icon: "🏆", tone: "text-brass-300" };
-  if (r.isThulla) return { text: "Thulla", icon: "😂", tone: "text-chili-400" };
+  if (r.isThulla) {
+    const loser = loserName(r.game);
+    return { text: loser.text, icon: loser.icon, tone: "text-chili-400" };
+  }
   return { text: "Lost", icon: "❌", tone: "text-cream-400" };
 }
 

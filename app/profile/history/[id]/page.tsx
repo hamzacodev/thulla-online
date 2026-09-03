@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
-import { outcomeLabel } from "@/components/HistoryCard";
+import { loserName, outcomeLabel } from "@/components/HistoryCard";
+import { PlayingCard } from "@/components/PlayingCard";
 import { useAuth } from "@/lib/useAuth";
 import {
   MigrationMissingError,
@@ -61,6 +62,13 @@ export default function GameDetailPage() {
   }, [id, userId, authLoading]);
 
   const outcome = record ? outcomeLabel(record) : null;
+  const loser = loserName(record?.game);
+  const loserLabel = `${loser.icon} ${loser.text}`;
+
+  // Trump-Patta keeps the two cards that decided the game in `details`.
+  const removedCard = typeof record?.details?.removedCard === "string" ? record.details.removedCard : null;
+  const remainingCard =
+    typeof record?.details?.remainingCard === "string" ? record.details.remainingCard : null;
 
   return (
     <main className="flex min-h-dvh flex-col">
@@ -112,6 +120,29 @@ export default function GameDetailPage() {
               ))}
             </dl>
 
+            {record.game === "trump_patta" && removedCard && remainingCard && (
+              <section className="mt-5">
+                <h2 className="mb-2 text-sm font-semibold text-cream-100">How it ended</h2>
+                <div className="flex items-start justify-center gap-6 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <p className="text-[0.68rem] uppercase tracking-wide text-cream-400">
+                      Left holding
+                    </p>
+                    <PlayingCard card={remainingCard} />
+                  </div>
+                  <div className="flex flex-col items-center gap-1.5">
+                    <p className="text-[0.68rem] uppercase tracking-wide text-cream-400">
+                      Hidden card
+                    </p>
+                    <PlayingCard card={removedCard} />
+                  </div>
+                </div>
+                <p className="mt-1.5 text-center text-[0.7rem] text-cream-400">
+                  Same rank — they would have paired, if the hidden card had ever been dealt.
+                </p>
+              </section>
+            )}
+
             <section className="mt-5">
               <h2 className="mb-2 text-sm font-semibold text-cream-100">Final table</h2>
               <ol className="space-y-1.5">
@@ -138,7 +169,7 @@ export default function GameDetailPage() {
                           {p.result === "win"
                             ? "🏆 Winner"
                             : p.result === "thulla"
-                            ? "😂 Thulla"
+                            ? loserLabel
                             : `${p.position + 1}${["st", "nd", "rd"][p.position] ?? "th"}`}
                         </span>
                       </li>
