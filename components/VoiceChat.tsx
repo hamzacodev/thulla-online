@@ -120,6 +120,9 @@ export function VoiceChat({
             className="btn btn-secondary relative !min-h-9 !gap-1 !px-2.5 !text-xs"
           >
             <span aria-hidden>{starting ? "⏳" : "🎙️"}</span>
+            {/* An unlabelled microphone reads as "you are being recorded"
+                just as easily as "tap to talk". Say which. */}
+            <span>{starting ? "Joining…" : "Enable Mic"}</span>
             {others.length > 0 && (
               <span className="tabular absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-mint-400 px-1 text-[0.6rem] font-bold text-ink-950">
                 {others.length}

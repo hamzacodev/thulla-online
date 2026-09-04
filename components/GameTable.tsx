@@ -162,9 +162,9 @@ export function GameTable({
       </div>
 
       {/* Your seat */}
-      <div className="relative shrink-0 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
         <div
-          className={`mx-auto flex w-fit items-center justify-center gap-2 rounded-full px-3 py-1 text-xs transition-colors ${
+          className={`relative mx-auto flex w-fit items-center justify-center gap-2 rounded-full px-3 py-1 text-xs transition-colors ${
             viewSeat === seniorSeat && seniorTone === "won"
               ? "anim-pop bg-brass-400/20 text-brass-200 ring-1 ring-brass-300/60"
               : viewSeat === seniorSeat && seniorTone === "collects"
@@ -183,14 +183,14 @@ export function GameTable({
               · {me?.hand.length ?? 0} {t("cards", lang)}
             </span>
           )}
+          {/* Just outside the pill's right edge. `left-full` starts where the
+              pill ends, so it follows the pill however wide the name makes
+              it, while costing no layout — inline it shoved the card count
+              sideways, and reserving the space left a permanent hole. */}
+          {me && speakingIds?.has(me.id) && (
+            <SpeakingWaves name="You" className="absolute left-full top-1/2 ml-1.5 -translate-y-1/2" />
+          )}
         </div>
-        {/* Out at the right edge of the strip rather than inside the pill.
-            Inline it pushed the card count sideways; reserving the space
-            left a hole sitting there whenever nobody was talking. Absolute,
-            it costs no layout at all. */}
-        {me && speakingIds?.has(me.id) && (
-          <SpeakingWaves name="You" className="absolute right-3 top-1 -translate-y-px" />
-        )}
         {me && me.hand.length > 0 ? (
           <Hand
             hand={me.hand}
