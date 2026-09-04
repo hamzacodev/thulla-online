@@ -10,6 +10,7 @@ import { ThullaToast } from "@/components/ThullaToast";
 import { VoiceChat } from "@/components/VoiceChat";
 import { ChatDrawer, RoomChat } from "@/components/RoomChat";
 import { QuitDialog } from "@/components/QuitDialog";
+import { CopyButton } from "@/components/CopyButton";
 import { SeriesComplete, SeriesInterval, SeriesTableStrip } from "@/components/SeriesPanels";
 import { SeriesFormatPicker } from "@/components/SeriesFormatPicker";
 import { formatLabel } from "@/lib/series/rules";
@@ -319,7 +320,14 @@ export default function RoomPage() {
         <div className="relative z-10 mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-4 py-8">
           <div className="panel p-6 text-center">
             <p className="text-xs uppercase tracking-wider text-cream-400">Room code</p>
-            <p className="tabular font-display my-2 text-5xl font-bold tracking-[0.2em] text-brass-300">{code}</p>
+            <div className="my-2 flex items-center justify-center gap-1">
+              {/* The trailing letter-spacing pushes the code visually off
+                  centre, so the button is nudged back the same amount. */}
+              <p className="tabular font-display pl-[0.2em] text-5xl font-bold tracking-[0.2em] text-brass-300">
+                {code}
+              </p>
+              <CopyButton value={code} label="Copy room code" />
+            </div>
             <p className="text-sm text-cream-400">Share this with your friends, wherever they are.</p>
 
             <div className="my-5 space-y-2">
