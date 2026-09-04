@@ -124,6 +124,23 @@ export default function RoomPage() {
     setOptimistic(null);
   }, [state]);
 
+  /**
+   * Who's talking, by player id.
+   *
+   * Peers are keyed per open tab and the table is keyed per player, so this
+   * maps one to the other. Anyone we've silenced locally is left out — their
+   * bars would be moving while we hear nothing, which is worse than no
+   * indicator at all.
+   */
+  const speakingIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const peer of voice.peers) {
+      if (peer.speaking && !peer.silenced) ids.add(peer.userId);
+    }
+    if (voice.speaking && userId) ids.add(userId);
+    return ids;
+  }, [voice.peers, voice.speaking, userId]);
+
   // Same engine event, same one-per-trick guard, over realtime updates.
   const thulla = useThulla(game, mySeat);
 
@@ -598,6 +615,7 @@ export default function RoomPage() {
           shakeCard={shakeCard}
           lang={lang}
           avatars={avatars}
+          speakingIds={speakingIds}
           onPlay={handlePlay}
         />
       </div>

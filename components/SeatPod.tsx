@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar } from "./Avatar";
+import { SpeakingWaves } from "./SpeakingWaves";
 import { CardStack } from "./PlayingCard";
 import type { EnginePlayer } from "@/lib/engine/types";
 
@@ -40,6 +41,8 @@ interface SeatPodProps {
    * game.
    */
   turnsAway?: number | null;
+  /** They're talking on voice chat right now. */
+  speaking?: boolean;
 }
 
 /**
@@ -50,6 +53,7 @@ interface SeatPodProps {
 export function SeatPod({
   player,
   turnsAway,
+  speaking,
   avatarUrl,
   isTurn,
   isThinking,
@@ -133,6 +137,7 @@ export function SeatPod({
             <Avatar src={avatarUrl} name={player.name} size={dense ? 18 : 20} dim={isOut} />
           )}
           <span className="truncate text-sm font-semibold text-cream-50">{player.name}</span>
+          {speaking && <SpeakingWaves name={player.name} />}
         </div>
         {highlight === "won" ? (
           <span className="text-[0.7rem] font-semibold text-brass-200">🏆 took the trick</span>

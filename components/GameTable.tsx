@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar } from "./Avatar";
+import { SpeakingWaves } from "./SpeakingWaves";
 import { Hand } from "./Hand";
 import { SeatPod, rankBadge } from "./SeatPod";
 import { TrickPile } from "./TrickPile";
@@ -18,6 +19,8 @@ interface GameTableProps {
   onPlay: (card: Card) => void;
   /** Profile pictures by user id — online tables only; CPUs keep their 🤖. */
   avatars?: Record<string, string>;
+  /** Player ids talking on voice chat right now. Online tables only. */
+  speakingIds?: ReadonlySet<string>;
   banner?: React.ReactNode;
   /** Shown once the viewer is out — e.g. "skip to the result". */
   outAction?: React.ReactNode;
@@ -38,6 +41,7 @@ export function GameTable({
   lang,
   onPlay,
   avatars,
+  speakingIds,
   banner,
   outAction,
 }: GameTableProps) {
@@ -105,6 +109,7 @@ export function GameTable({
               <SeatPod
                 player={p}
                 turnsAway={turnsAway.get(p.seat) ?? null}
+                speaking={!!speakingIds?.has(p.id)}
                 avatarUrl={avatars?.[p.id]}
                 isTurn={state.phase === "playing" && state.turnSeat === p.seat}
                 isThinking={
@@ -169,6 +174,7 @@ export function GameTable({
         >
           {me && <Avatar src={avatars?.[me.id]} name={me.name} size={18} />}
           <span className="font-semibold text-cream-100">{me?.name}</span>
+          {me && speakingIds?.has(me.id) && <SpeakingWaves name="You" />}
           {viewSeat === seniorSeat && seniorTone === "won" ? (
             <span className="font-semibold">· 🏆 took the trick</span>
           ) : viewSeat === seniorSeat && seniorTone === "collects" ? (

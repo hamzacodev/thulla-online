@@ -361,6 +361,37 @@ body {
   100% { opacity: 0; transform: translate(var(--spark-x, 0), var(--spark-y, -26px)) scale(1) rotate(var(--spark-rot, 40deg)); }
 }
 
+/* Voice: four bars breathing at slightly different rates. Equal durations
+   march in step and read as a loading spinner; staggered ones read as a
+   voice. Collapsed to static bars under reduced motion, where "these bars
+   are here at all" still means somebody is talking. */
+@keyframes voice-wave {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.voice-bar {
+  transform-origin: center;
+  animation: voice-wave 700ms ease-in-out infinite;
+}
+.voice-bar:nth-child(2) {
+  animation-duration: 620ms;
+  animation-delay: 130ms;
+}
+.voice-bar:nth-child(3) {
+  animation-duration: 810ms;
+  animation-delay: 260ms;
+}
+.voice-bar:nth-child(4) {
+  animation-duration: 660ms;
+  animation-delay: 80ms;
+}
+
 .anim-deal { animation: deal-in 420ms var(--ease-card) backwards; }
 .pile-fly { animation: play-to-center 340ms var(--ease-card) backwards; }
 .anim-sweep { animation: sweep-away 420ms var(--ease-card) forwards; }
