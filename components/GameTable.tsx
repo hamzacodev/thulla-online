@@ -162,7 +162,7 @@ export function GameTable({
       </div>
 
       {/* Your seat */}
-      <div className="shrink-0 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
+      <div className="relative shrink-0 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
         <div
           className={`mx-auto flex w-fit items-center justify-center gap-2 rounded-full px-3 py-1 text-xs transition-colors ${
             viewSeat === seniorSeat && seniorTone === "won"
@@ -174,13 +174,6 @@ export function GameTable({
         >
           {me && <Avatar src={avatars?.[me.id]} name={me.name} size={18} />}
           <span className="font-semibold text-cream-100">{me?.name}</span>
-          {/* Always in the layout, only sometimes visible — otherwise your own
-              strip changes width every time you open your mouth. */}
-          {me && (
-            <span className={speakingIds?.has(me.id) ? "" : "invisible"} aria-hidden={!speakingIds?.has(me.id)}>
-              <SpeakingWaves name="You" />
-            </span>
-          )}
           {viewSeat === seniorSeat && seniorTone === "won" ? (
             <span className="font-semibold">· 🏆 took the trick</span>
           ) : viewSeat === seniorSeat && seniorTone === "collects" ? (
@@ -191,6 +184,13 @@ export function GameTable({
             </span>
           )}
         </div>
+        {/* Out at the right edge of the strip rather than inside the pill.
+            Inline it pushed the card count sideways; reserving the space
+            left a hole sitting there whenever nobody was talking. Absolute,
+            it costs no layout at all. */}
+        {me && speakingIds?.has(me.id) && (
+          <SpeakingWaves name="You" className="absolute right-3 top-1 -translate-y-px" />
+        )}
         {me && me.hand.length > 0 ? (
           <Hand
             hand={me.hand}
