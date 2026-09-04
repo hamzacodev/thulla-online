@@ -61,3 +61,23 @@ export const TRICK_LINGER_MS = 1800;
 export function isRoomState(value: unknown): value is RoomState {
   return !!value && typeof value === "object" && (value as RoomState).version === 3;
 }
+
+/**
+ * Where a player is sitting *at the table*, which is not their lobby chair.
+ *
+ * `seats` are lobby chairs: they're handed out in join order and never move.
+ * The table order is shuffled on every deal, so that the same person doesn't
+ * lead every game of a series. Those two numbers agree only by coincidence.
+ *
+ * Every screen already derives its view from `game.players`; this exists so
+ * the server does the same, in one place. Reading `seats[].seat` and handing
+ * it to the engine looks right and is wrong roughly five times in six at a
+ * three-player table — it told the player holding the ace it wasn't their
+ * turn, on the opening lead of a match.
+ *
+ * Returns -1 when there is no game, or the player isn't in it.
+ */
+export function tableSeatOf(state: RoomState, userId: string): number {
+  if (!state.game) return -1;
+  return state.game.players.findIndex((p) => p.id === userId);
+}

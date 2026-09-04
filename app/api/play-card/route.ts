@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthedUser } from "@/lib/authHelpers";
 import { applyPlay } from "@/lib/engine/rules";
 import { loadRoom, markTrickEnd, maybeResolveTrick, recordRoomResults, saveRoom } from "@/lib/roomFlow";
+import { tableSeatOf } from "@/lib/roomTypes";
 
 export async function POST(req: Request) {
   const user = await getAuthedUser(req);
@@ -23,7 +24,14 @@ export async function POST(req: Request) {
   // did or didn't do.
   maybeResolveTrick(state);
 
-  const result = applyPlay(state.game, seat.seat, String(card));
+  // Their seat at the table, not their chair in the lobby — the table order
+  // is reshuffled every deal.
+  const tableSeat = tableSeatOf(state, user.id);
+  if (tableSeat < 0) {
+    return NextResponse.json({ error: "You're not at this table." }, { status: 403 });
+  }
+
+  const result = applyPlay(state.game, tableSeat, String(card));
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
 
   state.game = result.state;

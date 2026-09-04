@@ -14,7 +14,8 @@
     "series-test": "tsc scripts/series-test.ts lib/series/rules.ts lib/series/types.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/series-test.js",
     "thulla-timing-test": "tsc scripts/thulla-timing-test.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/thulla-timing-test.js",
     "trump-patta-test": "tsc scripts/trump-patta-test.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/trump-patta-test.js",
-    "trump-patta-sim": "tsc scripts/trump-patta-simulate.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/trump-patta-simulate.js"
+    "trump-patta-sim": "tsc scripts/trump-patta-simulate.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/trump-patta-simulate.js",
+    "room-seat-check": "tsc scripts/room-seat-check.ts lib/engine/*.ts lib/roomTypes.ts lib/series/*.ts --outDir .sim --module commonjs --target es2022 --moduleResolution node --skipLibCheck --strict && node .sim/scripts/room-seat-check.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

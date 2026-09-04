@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getAuthedUser } from "@/lib/authHelpers";
 import { concede } from "@/lib/engine/rules";
 import { recordRoomResults } from "@/lib/roomFlow";
-import { isRoomState, type RoomState } from "@/lib/roomTypes";
+import { isRoomState, tableSeatOf, type RoomState } from "@/lib/roomTypes";
 
 /**
  * Giving up on an online game.
@@ -38,7 +38,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "There's no game in progress." }, { status: 400 });
   }
 
-  state.game = concede(state.game, seat.seat);
+  // The table seat, not the lobby chair — conceding on the wrong index would
+  // knock out whoever happens to be sitting there.
+  const tableSeat = tableSeatOf(state, user.id);
+  if (tableSeat < 0) {
+    return NextResponse.json({ error: "You're not at this table." }, { status: 403 });
+  }
+  state.game = concede(state.game, tableSeat);
   state.status = "finished";
   state.trickEndsAt = null;
   state.rematchReady = [];
