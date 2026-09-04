@@ -95,7 +95,7 @@ export function SeatPod({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          {player.kind === "cpu" ? (
+          {player.kind === "cpu" || player.autoplay ? (
             <span aria-hidden className="text-xs">🤖</span>
           ) : (
             <Avatar src={avatarUrl} name={player.name} size={dense ? 18 : 20} dim={isOut} />

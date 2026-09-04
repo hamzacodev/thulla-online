@@ -18,10 +18,17 @@ const CONFIRM_WORD = "QUIT";
  */
 export function QuitDialog({
   busy,
+  mode = "concede",
   onCancel,
   onConfirm,
 }: {
   busy?: boolean;
+  /**
+   * "concede" ends the game for the whole table and is only offered at the
+   * death. "handover" is the way out before that: you leave, the computer
+   * plays your cards, and nobody else's game is spoiled.
+   */
+  mode?: "concede" | "handover";
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -46,7 +53,9 @@ export function QuitDialog({
   // than needing an effect to clear it.
   if (!mounted) return null;
 
-  const ready = typed.trim().toUpperCase() === CONFIRM_WORD;
+  // Typing the word is for the irreversible one. Handing over only ends
+  // your own involvement, so a plain confirm is proportionate.
+  const ready = mode === "handover" || typed.trim().toUpperCase() === CONFIRM_WORD;
 
   return createPortal(
     <div
@@ -60,16 +69,32 @@ export function QuitDialog({
     >
       <div className="panel anim-pop w-full max-w-sm p-5">
         <p id="quit-title" className="font-display text-xl font-bold text-cream-50">
-          Quit this game?
+          {mode === "handover" ? "Leave the table?" : "Quit this game?"}
         </p>
-        <p className="mt-2 text-sm text-cream-400">
-          You&apos;ll be the Thulla, and the game ends for everyone at the table. It goes on
-          your record like any other game — quitting stops the game, it doesn&apos;t undo the
-          loss.
-        </p>
-        <p className="mt-2 text-sm text-cream-400">You can always deal a rematch afterwards.</p>
+        {mode === "handover" ? (
+          <>
+            <p className="mt-2 text-sm text-cream-400">
+              The computer takes your seat and plays your cards. The game carries on for
+              everyone else, and the result still counts as yours — you keep your place in the
+              standings whatever the computer manages.
+            </p>
+            <p className="mt-2 text-sm text-cream-400">
+              Quitting outright would end the game for the whole table, so that only unlocks
+              once two players are left.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="mt-2 text-sm text-cream-400">
+              You&apos;ll be the Thulla, and the game ends for everyone at the table. It goes on
+              your record like any other game — quitting stops the game, it doesn&apos;t undo the
+              loss.
+            </p>
+            <p className="mt-2 text-sm text-cream-400">You can always deal a rematch afterwards.</p>
+          </>
+        )}
 
-        <label className="mt-4 block">
+        <label className={`mt-4 block ${mode === "handover" ? "hidden" : ""}`}>
           <span className="mb-1 block text-xs font-medium text-cream-400">
             Type <span className="font-mono font-bold text-chili-400">{CONFIRM_WORD}</span> to
             confirm
@@ -99,7 +124,13 @@ export function QuitDialog({
             disabled={!ready || busy}
             className="btn flex-1 !border-chili-400/50 !bg-chili-500/85 !text-white disabled:!bg-chili-500/30"
           >
-            {busy ? "Quitting…" : "Quit game"}
+            {busy
+              ? mode === "handover"
+                ? "Leaving…"
+                : "Quitting…"
+              : mode === "handover"
+              ? "🤖 Leave"
+              : "Quit game"}
           </button>
         </div>
       </div>

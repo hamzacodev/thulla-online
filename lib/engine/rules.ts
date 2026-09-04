@@ -370,6 +370,74 @@ export function standings(state: GameState): EnginePlayer[] {
 }
 
 /**
+ * How many players can still be left before quitting outright is allowed.
+ *
+ * Conceding ends the game for everybody, so it can't be available while
+ * there's a real game going: one player in five deciding they're bored
+ * shouldn't take the other four down with them. Once the table is down to
+ * the last two, the game is nearly over anyway and a concession costs the
+ * remaining player nothing they hadn't almost won already.
+ *
+ * Before that, the way out is `handOverToCpu` — you leave, the computer
+ * plays your cards, and everyone else's game carries on.
+ */
+export const CONCEDE_MAX_ACTIVE = 2;
+
+export function canConcede(state: GameState): boolean {
+  if (state.phase === "finished") return false;
+  return activeSeats(state).length <= CONCEDE_MAX_ACTIVE;
+}
+
+/** Why quitting outright isn't allowed yet, phrased for a player. */
+export function concedeRejection(state: GameState, seat: number): string | null {
+  if (state.phase === "finished") return "This game is already over.";
+  const player = state.players[seat];
+  if (!player) return "You're not at this table.";
+  if (player.hand.length === 0) return "You're already out — there's nothing to quit.";
+  const active = activeSeats(state).length;
+  if (active > CONCEDE_MAX_ACTIVE) {
+    const waiting = active - CONCEDE_MAX_ACTIVE;
+    return `Quitting ends the game for everyone, so it's only allowed once ${CONCEDE_MAX_ACTIVE} players are left — ${waiting} more still to go out. Hand your seat to the computer instead.`;
+  }
+  return null;
+}
+
+/**
+ * Someone walks away mid-game and the computer takes their cards.
+ *
+ * The seat keeps its owner: the same id, the same name, the same place in
+ * the standings, and the same result row at the end. All that changes is
+ * that a machine is choosing the cards, so four other people don't lose
+ * their game because one person had to go.
+ */
+export function handOverToCpu(stateIn: GameState, seat: number): GameState {
+  if (stateIn.phase === "finished") return stateIn;
+  const player = stateIn.players[seat];
+  if (!player || player.autoplay) return stateIn;
+
+  const state = clone(stateIn);
+  state.players[seat].autoplay = true;
+  state.players[seat].connected = false;
+  state.updatedAt = Date.now();
+  return state;
+}
+
+/** Seats the computer is playing on someone's behalf. */
+export function autoplaySeats(state: GameState): number[] {
+  return state.players.filter((p) => p.autoplay && p.hand.length > 0).map((p) => p.seat);
+}
+
+/** True when the table is waiting on a seat the computer should play. */
+export function awaitingAutoplay(state: GameState): boolean {
+  return (
+    state.phase === "playing" &&
+    state.turnSeat >= 0 &&
+    !!state.players[state.turnSeat]?.autoplay &&
+    state.players[state.turnSeat].hand.length > 0
+  );
+}
+
+/**
  * A player gives up.
  *
  * Conceding makes you the Thulla and ends the game there. That is a
@@ -384,7 +452,9 @@ export function standings(state: GameState): EnginePlayer[] {
  * rather than voiding the game for the people who were winning it.
  */
 export function concede(stateIn: GameState, seat: number): GameState {
-  if (stateIn.phase === "finished") return stateIn;
+  // Guarded here rather than only at the routes: this is a rule about when a
+  // game may end, and a rule that lives in the UI is not a rule.
+  if (concedeRejection(stateIn, seat)) return stateIn;
   const player = stateIn.players[seat];
   if (!player) return stateIn;
 

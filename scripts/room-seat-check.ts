@@ -1,4 +1,17 @@
-import { createGame, applyPlay, legalMoves } from "../lib/engine/rules";
+import {
+  createGame,
+  applyPlay,
+  legalMoves,
+  activeSeats,
+  awaitingAutoplay,
+  canConcede,
+  concede,
+  concedeRejection,
+  handOverToCpu,
+  resolveTrick,
+} from "../lib/engine/rules";
+import { chooseCard } from "../lib/engine/ai";
+import type { GameState } from "../lib/engine/types";
 import { tableSeatOf, type RoomSeat, type RoomState } from "../lib/roomTypes";
 import { shuffle, makeRng, ACE_OF_SPADES } from "../lib/engine/cards";
 
@@ -111,6 +124,75 @@ const seats: RoomSeat[] = [0, 1, 2].map((i) => ({ id: `user-${i}`, name: `P${i}`
 const room = roomWith(shuffle(seats, makeRng(7)), seats);
 check(tableSeatOf(room, "nobody") === -1, "an unknown user resolved to a real seat");
 check(tableSeatOf({ ...room, game: null } as RoomState, "user-0") === -1, "a room with no game resolved to a seat");
+
+/* ============================================================
+   Quitting: only at the death, and leaving hands the seat over
+   ============================================================ */
+console.log("\nQuitting");
+let quitFails = 0;
+const q = (ok: boolean, why: string) => {
+  if (!ok) {
+    quitFails++;
+    if (quitFails <= 8) console.log(`   ! ${why}`);
+  }
+};
+
+/** Plays until only `target` players still hold cards. */
+function playDownTo(state: GameState, target: number): GameState {
+  let guard = 0;
+  while (state.phase !== "finished" && activeSeats(state).length > target && guard++ < 4000) {
+    if (state.phase === "trickEnd") {
+      state = resolveTrick(state);
+      continue;
+    }
+    const card = chooseCard(state, state.turnSeat, "medium") ?? legalMoves(state, state.turnSeat)[0];
+    if (!card) break;
+    const res = applyPlay(state, state.turnSeat, card);
+    if (res.error) break;
+    state = res.state;
+  }
+  return state;
+}
+
+for (const count of [3, 4, 5, 6, 8]) {
+  for (let seed = 0; seed < 12; seed++) {
+    const fresh = createGame({
+      players: Array.from({ length: count }, (_, i) => ({ id: `u${i}`, name: `P${i}`, kind: "remote" as const })),
+      config: { mode: "friends", mustLeadAceOfSpades: true, seed: seed * 31 + count },
+    });
+
+    /* Early on, nobody may quit. */
+    const someone = fresh.players.find((p) => p.hand.length > 0)!.seat;
+    q(!canConcede(fresh), `${count}p/${seed}: quitting was allowed with ${activeSeats(fresh).length} still in`);
+    q(!!concedeRejection(fresh, someone), `${count}p/${seed}: no reason given for refusing an early quit`);
+    const refused = concede(fresh, someone);
+    q(refused.phase !== "finished", `${count}p/${seed}: an early concede ended the game anyway`);
+    q(refused === fresh, `${count}p/${seed}: an early concede changed the state`);
+
+    /* Leaving instead hands the seat over and the game carries on. */
+    const handed = handOverToCpu(fresh, someone);
+    q(handed.players[someone].autoplay === true, `${count}p/${seed}: handover didn't mark the seat`);
+    q(handed.players[someone].id === fresh.players[someone].id, `${count}p/${seed}: handover changed the seat's owner`);
+    q(handed.players[someone].kind !== "cpu", `${count}p/${seed}: handover disowned the seat — the result would vanish`);
+    q(handed.phase === "playing", `${count}p/${seed}: handover ended the game`);
+    q(activeSeats(handed).length === activeSeats(fresh).length, `${count}p/${seed}: handover removed a player`);
+    if (handed.turnSeat === someone) {
+      q(awaitingAutoplay(handed), `${count}p/${seed}: the table isn't waiting on the handed-over seat`);
+    }
+
+    /* Once it's down to two, quitting is on. */
+    const endgame = playDownTo(fresh, 2);
+    if (endgame.phase === "finished" || activeSeats(endgame).length > 2) continue;
+    q(canConcede(endgame), `${count}p/${seed}: quitting still refused with ${activeSeats(endgame).length} left`);
+    const last = activeSeats(endgame)[0];
+    q(!concedeRejection(endgame, last), `${count}p/${seed}: endgame quit refused — ${concedeRejection(endgame, last)}`);
+    const done = concede(endgame, last);
+    q(done.phase === "finished", `${count}p/${seed}: endgame concede didn't finish the game`);
+    q(done.thullaSeat === last, `${count}p/${seed}: the quitter wasn't the Thulla`);
+  }
+}
+console.log(`  60 tables across 3/4/5/6/8 players — ${quitFails} failures`);
+failures += quitFails;
 
 console.log(failures === 0 ? "\nROOM SEAT CHECKS PASSED" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

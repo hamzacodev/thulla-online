@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getAuthedUser } from "@/lib/authHelpers";
-import { concede } from "@/lib/engine/rules";
+import { concede, concedeRejection, handOverToCpu } from "@/lib/engine/rules";
 import { recordRoomResults } from "@/lib/roomFlow";
 import { isRoomState, tableSeatOf, type RoomState } from "@/lib/roomTypes";
 
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   const user = await getAuthedUser(req);
   if (!user) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
 
-  const { code } = await req.json();
+  const { code, handOver } = await req.json();
   if (!code) return NextResponse.json({ error: "Missing room code." }, { status: 400 });
   const roomCode = String(code).trim().toUpperCase();
 
@@ -38,12 +38,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "There's no game in progress." }, { status: 400 });
   }
 
-  // The table seat, not the lobby chair — conceding on the wrong index would
-  // knock out whoever happens to be sitting there.
+  // The table seat, not the lobby chair — acting on the wrong index would
+  // hit whoever happens to be sitting there.
   const tableSeat = tableSeatOf(state, user.id);
   if (tableSeat < 0) {
     return NextResponse.json({ error: "You're not at this table." }, { status: 403 });
   }
+
+  // Leaving mid-game: the computer takes over the seat and everybody else
+  // plays on. The seat keeps its owner, so they still place and still get a
+  // result — only who picks the cards has changed.
+  if (handOver === true) {
+    state.game = handOverToCpu(state.game, tableSeat);
+    state.updatedAt = Date.now();
+    const { error: handError } = await supabaseAdmin.from("rooms").update({ state }).eq("code", roomCode);
+    if (handError) return NextResponse.json({ error: "Couldn't hand over. Try again." }, { status: 500 });
+    return NextResponse.json({ ok: true, handedOver: true });
+  }
+
+  // Quitting outright ends the game for the whole table, so it is only on
+  // once the table is down to the last two. Enforced here, not just in the
+  // dialog: the dialog is a courtesy, this is the rule.
+  const refusal = concedeRejection(state.game, tableSeat);
+  if (refusal) return NextResponse.json({ error: refusal }, { status: 400 });
+
   state.game = concede(state.game, tableSeat);
   state.status = "finished";
   state.trickEndsAt = null;

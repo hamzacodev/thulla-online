@@ -23,7 +23,7 @@ import { useVoice } from "@/lib/useVoice";
 import { useAvatars } from "@/lib/useAvatars";
 import { useRoomChat } from "@/lib/useRoomChat";
 import { authedFetch } from "@/lib/apiClient";
-import { applyPlay, legalMoves } from "@/lib/engine/rules";
+import { applyPlay, awaitingAutoplay, canConcede, legalMoves } from "@/lib/engine/rules";
 import type { Card } from "@/lib/engine/cards";
 import type { GameState } from "@/lib/engine/types";
 import { invalidCardMessage, phrase, t } from "@/lib/copy";
@@ -209,10 +209,14 @@ export default function RoomPage() {
     else refresh();
   }
 
-  /** Concede: it ends the game and the loss is recorded like any other. */
-  async function handleQuit() {
+  /**
+   * Getting out. Two different things, depending on how far along the game
+   * is: hand the seat to the computer and leave, or — once it's down to the
+   * last two — concede outright and end it.
+   */
+  async function handleQuit(handOver: boolean) {
     setQuitting(true);
-    const data = await authedFetch("/api/quit", accessToken, { code });
+    const data = await authedFetch("/api/quit", accessToken, { code, handOver });
     setQuitting(false);
     if (data.error) {
       say(data.error, "error");
@@ -220,8 +224,28 @@ export default function RoomPage() {
     }
     setQuitOpen(false);
     setMenuOpen(false);
-    refresh();
+    if (handOver) router.push("/");
+    else refresh();
   }
+
+  /**
+   * Take a turn for a seat the computer inherited.
+   *
+   * Online turns arrive because whoever's turn it is sends a request, which
+   * stops working the moment nobody is sitting there. Every client still at
+   * the table offers instead, and the server plays at most one of those —
+   * `since` is the state each client was looking at, so only the first gets
+   * through and the rest are refused rather than stacking up moves.
+   */
+  useEffect(() => {
+    if (!game || !accessToken || optimistic) return;
+    if (!awaitingAutoplay(game)) return;
+    const at = game.updatedAt;
+    const timer = setTimeout(() => {
+      void authedFetch("/api/cpu-move", accessToken, { code, since: at });
+    }, 900 + Math.random() * 500);
+    return () => clearTimeout(timer);
+  }, [game, optimistic, accessToken, code]);
 
   async function handleRematch(now = false) {
     const data = await authedFetch("/api/rematch", accessToken, { code, now });
@@ -471,13 +495,20 @@ export default function RoomPage() {
 
   /* ---------- Playing ---------- */
   const isMyTurn = game.phase === "playing" && game.turnSeat === mySeat;
+  // Quitting outright ends everyone's game, so it only unlocks at the death.
+  const endgame = canConcede(game);
 
   return (
     <main className="felt flex h-dvh flex-col overflow-hidden">
       <Toast message={toast} />
       <ThullaToast notice={thulla} />
       {quitOpen && (
-        <QuitDialog busy={quitting} onCancel={() => setQuitOpen(false)} onConfirm={handleQuit} />
+        <QuitDialog
+          busy={quitting}
+          mode={endgame ? "concede" : "handover"}
+          onCancel={() => setQuitOpen(false)}
+          onConfirm={() => handleQuit(!endgame)}
+        />
       )}
 
       <header className="relative z-20 flex shrink-0 items-center gap-2 px-2 pt-[max(0.4rem,env(safe-area-inset-top))] pb-1">
@@ -511,11 +542,12 @@ export default function RoomPage() {
                 }}
                 className="btn btn-ghost w-full !justify-start !min-h-10 !text-xs !text-chili-400"
               >
-                🏳️ Quit this game
+                {endgame ? "🏳️ Quit this game" : "🤖 Leave — computer takes over"}
               </button>
               <p className="px-2.5 pb-1 pt-0.5 text-[0.65rem] leading-snug text-cream-400/70">
-                Going home leaves the table waiting for you. Quitting concedes: you&apos;re the
-                Thulla and the game ends.
+                {endgame
+                  ? "Down to the last two, so quitting is allowed: you're the Thulla and the game ends."
+                  : "Quitting would end the game for everyone, so it's off until two players are left. Leave and the computer plays your cards instead."}
               </p>
             </div>
           </>

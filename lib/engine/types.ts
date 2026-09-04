@@ -20,6 +20,14 @@ export interface EnginePlayer {
   /** Non-null once they've emptied their hand; 0 = got out first. */
   finishedRank: number | null;
   connected: boolean;
+  /**
+   * The computer is playing this seat because whoever was in it left.
+   *
+   * Deliberately not `kind: "cpu"`. The seat still belongs to the person who
+   * walked away — they keep their place in the standings and still get a
+   * result row — it is only who *chooses the cards* that changed.
+   */
+  autoplay?: boolean;
 }
 
 export interface PileEntry {

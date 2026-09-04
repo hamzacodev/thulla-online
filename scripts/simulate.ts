@@ -1,4 +1,16 @@
-import { createGame, applyPlay, resolveTrick, legalMoves, auditState, standings, concede } from "../lib/engine/rules";
+import {
+  createGame,
+  applyPlay,
+  resolveTrick,
+  legalMoves,
+  auditState,
+  standings,
+  concede,
+  canConcede,
+  concedeRejection,
+  activeSeats,
+  handOverToCpu,
+} from "../lib/engine/rules";
 import { chooseCard } from "../lib/engine/ai";
 import { ACE_OF_SPADES } from "../lib/engine/cards";
 import type { Difficulty, GameState } from "../lib/engine/types";
@@ -112,9 +124,15 @@ for (const difficulty of ["easy", "medium", "hard"] as Difficulty[]) {
   }
 }
 /**
- * Conceding, from every kind of mid-game position. A quit still has to leave
- * a state the rest of the app can trust: exactly one Thulla, everybody
- * placed, no card invented or duplicated, and the input state untouched.
+ * Conceding, from every kind of mid-game position.
+ *
+ * Two rules, and which applies depends on how far along the game is.
+ * Above two players still holding cards, quitting is refused outright —
+ * ending four other people's game because one of them is bored is not a
+ * thing the engine will do, and leaving hands the seat to the computer
+ * instead. At two or fewer it goes ahead, and still has to leave a state the
+ * rest of the app can trust: exactly one Thulla, everybody placed, no card
+ * invented or duplicated, and the input state untouched.
  */
 let concedeFail = 0;
 const concedeCheck = (ok: boolean, why: string) => {
@@ -146,9 +164,39 @@ for (const count of [2, 3, 4, 6, 8]) {
 
     const quitter = state.players.find((p) => p.hand.length > 0)!.seat;
     const handBefore = state.players[quitter].hand.length;
+    const stillIn = activeSeats(state).length;
+
+    /* Too early to quit: refused, with a reason, and nothing touched. */
+    if (stillIn > 2) {
+      concedeCheck(!canConcede(state), `${count}p/${trial} quitting allowed with ${stillIn} still in`);
+      concedeCheck(!!concedeRejection(state, quitter), `${count}p/${trial} refused with no reason given`);
+      const refused = concede(state, quitter);
+      concedeCheck(refused.phase !== "finished", `${count}p/${trial} an early quit ended the game`);
+      concedeCheck(
+        refused.players[quitter].hand.length === handBefore,
+        `${count}p/${trial} an early quit took the cards anyway`
+      );
+
+      /* Leaving is the way out instead, and it costs nobody their game. */
+      const handed = handOverToCpu(state, quitter);
+      concedeCheck(handed.players[quitter].autoplay === true, `${count}p/${trial} handover didn't take the seat`);
+      concedeCheck(handed.players[quitter].id === state.players[quitter].id, `${count}p/${trial} handover changed the owner`);
+      // The phase is whatever it already was — somebody can walk away in the
+      // middle of a trick, and that must not disturb the trick.
+      concedeCheck(handed.phase === state.phase, `${count}p/${trial} handover changed the phase`);
+      concedeCheck(
+        activeSeats(handed).length === stillIn,
+        `${count}p/${trial} handover dropped a player out of the game`
+      );
+      concedeCheck(auditState(handed).length === 0, `${count}p/${trial} handover ${auditState(handed).join("; ")}`);
+      continue;
+    }
+
+    /* Down to the last two: quitting goes through. */
     const after = concede(state, quitter);
     const order = standings(after);
 
+    concedeCheck(canConcede(state), `${count}p/${trial} quitting refused with ${stillIn} left`);
     concedeCheck(after.phase === "finished", `${count}p/${trial} not finished`);
     concedeCheck(after.thullaSeat === quitter, `${count}p/${trial} quitter isn't the Thulla`);
     concedeCheck(after.players.every((p) => p.finishedRank !== null), `${count}p/${trial} someone unplaced`);

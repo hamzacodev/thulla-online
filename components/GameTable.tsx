@@ -46,7 +46,8 @@ export function GameTable({
   const others = Array.from({ length: total - 1 }, (_, i) => state.players[(viewSeat + 1 + i) % total]);
 
   const turnPlayer = state.phase === "playing" ? state.players[state.turnSeat] : null;
-  const waitingOnCpu = turnPlayer?.kind === "cpu";
+  // A seat the computer inherited waits like any other CPU seat.
+  const waitingOnCpu = turnPlayer?.kind === "cpu" || !!turnPlayer?.autoplay;
 
   // At the end of a trick, mark whoever played the highest card of the led
   // suit — they either took the trick or are about to eat the pile.
@@ -95,7 +96,11 @@ export function GameTable({
                 player={p}
                 avatarUrl={avatars?.[p.id]}
                 isTurn={state.phase === "playing" && state.turnSeat === p.seat}
-                isThinking={state.phase === "playing" && state.turnSeat === p.seat && p.kind === "cpu"}
+                isThinking={
+                  state.phase === "playing" &&
+                  state.turnSeat === p.seat &&
+                  (p.kind === "cpu" || !!p.autoplay)
+                }
                 thinkingLabel={t("thinking", lang)}
                 cardsLabel={t("cards", lang)}
                 outLabel={t("safe", lang)}
