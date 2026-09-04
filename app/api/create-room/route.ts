@@ -4,11 +4,13 @@ import { getAuthedUser } from "@/lib/authHelpers";
 import { isValidPlayerCount, MAX_PLAYERS, MIN_PLAYERS } from "@/lib/engine/rules";
 import type { RoomState } from "@/lib/roomTypes";
 import { isValidBestOf } from "@/lib/series/rules";
+import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from "@/lib/roomCode";
 
 function randomCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous glyphs
   let code = "";
-  for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < ROOM_CODE_LENGTH; i++) {
+    code += ROOM_CODE_ALPHABET[Math.floor(Math.random() * ROOM_CODE_ALPHABET.length)];
+  }
   return code;
 }
 

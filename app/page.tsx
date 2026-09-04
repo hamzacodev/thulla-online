@@ -9,6 +9,7 @@ import { CardBack, PlayingCard } from "@/components/PlayingCard";
 import { useAuth } from "@/lib/useAuth";
 import { authedFetch } from "@/lib/apiClient";
 import { GAMES } from "@/lib/games";
+import { ROOM_CODE_LENGTH, normalizeRoomCode } from "@/lib/roomCode";
 
 /**
  * The platform's front page.
@@ -35,7 +36,7 @@ export default function Home() {
   /** Straight into a friend's table, without going via the game's setup. */
   async function handleJoin(e: React.FormEvent) {
     e.preventDefault();
-    const code = joinCode.trim().toUpperCase();
+    const code = normalizeRoomCode(joinCode);
     if (!code) return setJoinError("Enter the code your friend shared.");
     if (!userId) return router.push("/login");
     if (!username) return router.push("/username");
@@ -117,15 +118,19 @@ export default function Home() {
               className="field tabular text-center uppercase tracking-[0.3em]"
               placeholder="ROOM CODE"
               value={joinCode}
-              maxLength={5}
-              autoCapitalize="characters"
+              maxLength={ROOM_CODE_LENGTH}
+              autoComplete="off"
               autoCorrect="off"
               spellCheck={false}
               aria-label="Room code to join"
+              // Stored exactly as typed. The uppercase is CSS, and the
+              // tidying happens on blur and on submit — rewriting the value
+              // on every keystroke is what emptied the field on Android.
               onChange={(e) => {
-                setJoinCode(e.target.value.toUpperCase());
+                setJoinCode(e.target.value);
                 setJoinError("");
               }}
+              onBlur={() => setJoinCode((c) => normalizeRoomCode(c))}
             />
             <button
               type="submit"

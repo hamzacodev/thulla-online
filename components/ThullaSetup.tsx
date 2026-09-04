@@ -10,6 +10,7 @@ import { clearSavedGame } from "@/lib/useLocalGame";
 import { PLAYER_COUNTS, defaultNames, loadSetup, saveSetup, type TableSetup } from "@/lib/setup";
 import type { Difficulty } from "@/lib/engine/types";
 import { sfx, primeAudio } from "@/lib/sound";
+import { ROOM_CODE_LENGTH, normalizeRoomCode } from "@/lib/roomCode";
 import { SeriesFormatPicker } from "@/components/SeriesFormatPicker";
 import { clearSeries } from "@/lib/series/store";
 
@@ -98,10 +99,11 @@ export function ThullaSetup({ basePath = "/play" }: { basePath?: string }) {
   }
 
   async function joinRoom() {
-    if (!joinCode.trim()) return setError("Enter a room code first.");
+    const code = normalizeRoomCode(joinCode);
+    if (!code) return setError("Enter a room code first.");
     setBusy(true);
     setError("");
-    const data = await authedFetch("/api/join-room", accessToken, { code: joinCode });
+    const data = await authedFetch("/api/join-room", accessToken, { code });
     setBusy(false);
     if (data.error) return setError(data.error);
     router.push(`/room/${data.code}`);
@@ -254,10 +256,13 @@ export function ThullaSetup({ basePath = "/play" }: { basePath?: string }) {
                       className="field tabular uppercase tracking-[0.25em]"
                       placeholder="CODE"
                       value={joinCode}
-                      maxLength={5}
-                      autoCapitalize="characters"
+                      maxLength={ROOM_CODE_LENGTH}
+                      autoComplete="off"
                       autoCorrect="off"
-                      onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                      spellCheck={false}
+                      // Typed value kept as-is; see normalizeRoomCode.
+                      onChange={(e) => setJoinCode(e.target.value)}
+                      onBlur={() => setJoinCode((c) => normalizeRoomCode(c))}
                       aria-label="Room code"
                     />
                     <button onClick={joinRoom} disabled={busy} className="btn btn-secondary shrink-0">Join</button>
