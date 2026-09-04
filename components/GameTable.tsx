@@ -174,7 +174,13 @@ export function GameTable({
         >
           {me && <Avatar src={avatars?.[me.id]} name={me.name} size={18} />}
           <span className="font-semibold text-cream-100">{me?.name}</span>
-          {me && speakingIds?.has(me.id) && <SpeakingWaves name="You" />}
+          {/* Always in the layout, only sometimes visible — otherwise your own
+              strip changes width every time you open your mouth. */}
+          {me && (
+            <span className={speakingIds?.has(me.id) ? "" : "invisible"} aria-hidden={!speakingIds?.has(me.id)}>
+              <SpeakingWaves name="You" />
+            </span>
+          )}
           {viewSeat === seniorSeat && seniorTone === "won" ? (
             <span className="font-semibold">· 🏆 took the trick</span>
           ) : viewSeat === seniorSeat && seniorTone === "collects" ? (

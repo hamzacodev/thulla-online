@@ -68,7 +68,7 @@ export function SeatPod({
 
   return (
     <div
-      className={`flex items-center gap-2 rounded-2xl border px-2.5 py-2 transition-colors backdrop-blur-sm ${
+      className={`relative flex items-center gap-2 rounded-2xl border px-2.5 py-2 transition-colors backdrop-blur-sm ${
         // A ring, and only a ring. The border already carries whose turn it
         // is and the trick-end states own the shadow — two shadow utilities
         // on one element resolve by stylesheet order, not by intent. A ring
@@ -123,6 +123,13 @@ export function SeatPod({
       </div>
       )}
 
+      {/* Parked in the corner rather than sitting in the row. Inline, it
+          appeared and disappeared as somebody talked, and the pod grew and
+          shrank underneath it — a seat that twitches every time its owner
+          says something is worse than no indicator. Out of flow, the layout
+          never moves. */}
+      {speaking && <SpeakingWaves name={player.name} className="absolute right-2 top-1.5" />}
+
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           {turnsAway != null && (
@@ -143,7 +150,6 @@ export function SeatPod({
           ) : (
             <Avatar src={avatarUrl} name={player.name} size={dense ? 18 : 20} dim={isOut} />
           )}
-          {speaking && <SpeakingWaves name={player.name} />}
           <span className="truncate text-sm font-semibold text-cream-50">{player.name}</span>
         </div>
         {highlight === "won" ? (
