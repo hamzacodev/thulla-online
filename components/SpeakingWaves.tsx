@@ -26,15 +26,15 @@ export function SpeakingWaves({
       title={label}
       aria-label={label}
       role="img"
-      className={`flex h-3.5 shrink-0 items-center gap-[2px] ${className}`}
+      className={`flex h-4 shrink-0 items-center gap-[3px] ${className}`}
     >
       {[0, 1, 2, 3].map((i) => (
         <span
           key={i}
           aria-hidden
-          className="voice-bar block w-[2px] rounded-full bg-mint-300"
+          className="voice-bar block w-[2.5px] rounded-full bg-mint-300 shadow-[0_0_6px_rgba(111,216,172,0.9)]"
           // Varied resting heights, so it isn't four identical sticks.
-          style={{ height: [8, 14, 11, 6][i] }}
+          style={{ height: [9, 16, 12, 7][i] }}
         />
       ))}
     </span>

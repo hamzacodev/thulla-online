@@ -69,6 +69,13 @@ export function SeatPod({
   return (
     <div
       className={`flex items-center gap-2 rounded-2xl border px-2.5 py-2 transition-colors backdrop-blur-sm ${
+        // A ring, and only a ring. The border already carries whose turn it
+        // is and the trick-end states own the shadow — two shadow utilities
+        // on one element resolve by stylesheet order, not by intent. A ring
+        // sits outside all of that, so somebody can talk on any turn and in
+        // the middle of winning a trick without the pod fighting itself.
+        speaking ? "ring-2 ring-mint-300/80 " : ""
+      }${
         highlight === "won"
           ? "anim-pop border-brass-300 bg-brass-400/20 shadow-[0_0_26px_-6px_rgba(229,193,121,0.9)]"
           : highlight === "collects"
@@ -136,8 +143,8 @@ export function SeatPod({
           ) : (
             <Avatar src={avatarUrl} name={player.name} size={dense ? 18 : 20} dim={isOut} />
           )}
-          <span className="truncate text-sm font-semibold text-cream-50">{player.name}</span>
           {speaking && <SpeakingWaves name={player.name} />}
+          <span className="truncate text-sm font-semibold text-cream-50">{player.name}</span>
         </div>
         {highlight === "won" ? (
           <span className="text-[0.7rem] font-semibold text-brass-200">🏆 took the trick</span>
