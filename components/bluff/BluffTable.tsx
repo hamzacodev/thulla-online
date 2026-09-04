@@ -48,6 +48,14 @@ export function BluffTable({
   const others = Array.from({ length: total - 1 }, (_, i) => state.players[(viewSeat + 1 + i) % total]);
   const crowded = others.length > 5;
 
+  // Only players still holding cards take a turn, so only they get a number.
+  const turnsAway = new Map<number, number>();
+  let step = 0;
+  for (const p of others) {
+    if (p.hand.length === 0) continue;
+    turnsAway.set(p.seat, ++step);
+  }
+
   const myTurn = state.phase === "claiming" && state.turnSeat === viewSeat;
   const revealing = state.phase === "reveal" ? state.outcome?.cards ?? null : null;
   const claim = state.claim;
@@ -81,6 +89,7 @@ export function BluffTable({
               >
                 <BluffSeatPod
                   player={p}
+                  turnsAway={turnsAway.get(p.seat) ?? null}
                   isTurn={state.phase === "claiming" && state.turnSeat === p.seat}
                   isDeciding={state.phase === "challenge" && pendingChallenger === p.seat}
                   avatarUrl={avatars?.[p.id]}

@@ -29,6 +29,17 @@ interface SeatPodProps {
   compact?: boolean;
   /** Drops the card thumbnail so many seats still fit round the table. */
   dense?: boolean;
+  /**
+   * How many turns away this player is: 1 is whoever plays straight after
+   * you. Null once they're out, since a player with no cards is skipped.
+   *
+   * On a wide screen the seats sit round an ellipse and their order is the
+   * order you read them in. On a phone they wrap into a row, which says
+   * nothing about who follows whom — so the number is the only thing
+   * carrying it, and in Thulla knowing who plays after you is most of the
+   * game.
+   */
+  turnsAway?: number | null;
 }
 
 /**
@@ -38,6 +49,7 @@ interface SeatPodProps {
  */
 export function SeatPod({
   player,
+  turnsAway,
   avatarUrl,
   isTurn,
   isThinking,
@@ -64,6 +76,13 @@ export function SeatPod({
           : "border-brass-400/20 bg-ink-900/70"
       }`}
       style={{ minWidth: dense ? "6.6rem" : compact ? "8.5rem" : "9.5rem" }}
+      aria-label={
+        turnsAway == null
+          ? `${player.name}, out`
+          : `${player.name}, ${
+              turnsAway === 1 ? "plays after you" : `${turnsAway} turns after you`
+            }, ${player.hand.length} cards`
+      }
     >
       {/* The stack is drawn at 0.62, so its box is 0.62 too. It used to
           reserve a full-height card and scale the paint down inside it,
@@ -95,6 +114,19 @@ export function SeatPod({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
+          {turnsAway != null && (
+            <span
+              aria-hidden
+              title={turnsAway === 1 ? "Plays after you" : `${turnsAway} turns after you`}
+              className={`tabular grid h-4 w-4 shrink-0 place-items-center rounded-full text-[0.6rem] font-bold ${
+                turnsAway === 1
+                  ? "bg-brass-400 text-ink-950"
+                  : "bg-white/10 text-cream-400"
+              }`}
+            >
+              {turnsAway}
+            </span>
+          )}
           {player.kind === "cpu" || player.autoplay ? (
             <span aria-hidden className="text-xs">🤖</span>
           ) : (

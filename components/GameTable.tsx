@@ -45,6 +45,16 @@ export function GameTable({
   const me = state.players[viewSeat];
   const others = Array.from({ length: total - 1 }, (_, i) => state.players[(viewSeat + 1 + i) % total]);
 
+  // How far round the table each opponent is from you, counting only players
+  // who still hold cards — anyone out is skipped in the turn order, so
+  // counting them would make the numbers lie.
+  const turnsAway = new Map<number, number>();
+  let step = 0;
+  for (const p of others) {
+    if (p.hand.length === 0) continue;
+    turnsAway.set(p.seat, ++step);
+  }
+
   const turnPlayer = state.phase === "playing" ? state.players[state.turnSeat] : null;
   // A seat the computer inherited waits like any other CPU seat.
   const waitingOnCpu = turnPlayer?.kind === "cpu" || !!turnPlayer?.autoplay;
@@ -94,6 +104,7 @@ export function GameTable({
             >
               <SeatPod
                 player={p}
+                turnsAway={turnsAway.get(p.seat) ?? null}
                 avatarUrl={avatars?.[p.id]}
                 isTurn={state.phase === "playing" && state.turnSeat === p.seat}
                 isThinking={

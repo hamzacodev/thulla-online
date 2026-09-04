@@ -73,12 +73,20 @@ export function BluffSeatPod({
   isDeciding,
   avatarUrl,
   compact,
+  turnsAway,
 }: {
   player: BluffPlayer;
   isTurn: boolean;
   isDeciding: boolean;
   avatarUrl?: string | null;
   compact?: boolean;
+  /**
+   * How many turns away: 1 is whoever plays straight after you. On a phone
+   * the seats wrap into a row, which says nothing about who follows whom —
+   * and in Bluff the player right after you is the only one who can call
+   * your claim, so it's worth more than a seating hint.
+   */
+  turnsAway?: number | null;
 }) {
   const out = player.hand.length === 0;
 
@@ -107,6 +115,17 @@ export function BluffSeatPod({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
+          {turnsAway != null && (
+            <span
+              aria-hidden
+              title={turnsAway === 1 ? "Plays after you — and calls your claims" : `${turnsAway} turns after you`}
+              className={`tabular grid h-4 w-4 shrink-0 place-items-center rounded-full text-[0.6rem] font-bold ${
+                turnsAway === 1 ? "bg-brass-400 text-ink-950" : "bg-white/10 text-cream-400"
+              }`}
+            >
+              {turnsAway}
+            </span>
+          )}
           {player.kind === "cpu" ? (
             <span aria-hidden className="text-xs">🤖</span>
           ) : (
