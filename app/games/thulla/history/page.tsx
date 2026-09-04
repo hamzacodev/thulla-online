@@ -5,9 +5,9 @@ import { HistoryBrowser } from "@/components/HistoryBrowser";
 
 export default function ThullaHistoryPage() {
   return (
-    <main className="flex min-h-dvh flex-col">
+    <main className="flex h-dvh flex-col overflow-hidden">
       <PlatformNav />
-      <div className="mx-auto w-full max-w-md px-4 pt-4">
+      <div className="mx-auto w-full max-w-md shrink-0 px-4 pt-4">
         <Breadcrumbs
           trail={[
             { label: "Games", href: "/games" },

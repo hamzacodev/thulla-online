@@ -90,10 +90,14 @@ export function HistoryBrowser({ gameId = "thulla" }: { gameId?: string }) {
   }, [authLoading, load]);
 
   return (
-    <div className="mx-auto w-full max-w-md flex-1 px-4 pb-12 pt-3">
+    // A column that fills whatever height the page gives it: the filters and
+    // the count stay put, and only the games scroll. A history of a few
+    // hundred games used to stretch the page down past everything else, so
+    // the filters you wanted were a long scroll back up.
+    <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col px-4 pb-4 pt-3">
         {/* Filters — a horizontal scroller so six chips never wrap awkwardly
             or shrink below a tappable size on a narrow phone. */}
-        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        <div className="no-scrollbar -mx-4 flex shrink-0 gap-2 overflow-x-auto px-4 pb-1">
           {FILTERS.map((f) => (
             <button
               key={f.id}
@@ -108,7 +112,7 @@ export function HistoryBrowser({ gameId = "thulla" }: { gameId?: string }) {
           ))}
         </div>
 
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex shrink-0 items-center justify-between">
           <p className="text-xs text-cream-400">
             {loading ? "Loading…" : `${records.length}${hasMore ? "+" : ""} game${records.length === 1 ? "" : "s"}`}
           </p>
@@ -144,22 +148,22 @@ export function HistoryBrowser({ gameId = "thulla" }: { gameId?: string }) {
             )}
           </div>
         ) : (
-          <>
-            <div className="mt-3 space-y-2">
-              {records.map((r) => (
-                <HistoryCard key={r.id} record={r} />
-              ))}
-            </div>
+          // overscroll-contain so reaching the end doesn't start scrolling
+          // the page behind it, which on a phone reads as the list jumping.
+          <div className="-mx-1 mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-1 pb-2">
+            {records.map((r) => (
+              <HistoryCard key={r.id} record={r} />
+            ))}
             {hasMore && (
               <button
                 onClick={() => load(page + 1, true)}
                 disabled={loadingMore}
-                className="btn btn-secondary mt-4 w-full"
+                className="btn btn-secondary mt-2 w-full"
               >
                 {loadingMore ? "Loading…" : "Load More"}
               </button>
             )}
-          </>
+          </div>
         )}
     </div>
   );
