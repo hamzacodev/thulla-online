@@ -499,6 +499,11 @@ export default function RoomPage() {
                 meId={userId ?? undefined}
                 avatars={avatars}
                 onNextGame={() => void handleRematch()}
+                // Host only, and the server checks it again — the client
+                // decides what to draw, the server decides what's allowed.
+                onShorten={
+                  state.hostId === userId ? (bestOf) => void handleFormat(bestOf) : undefined
+                }
               />
             ) : undefined
           }

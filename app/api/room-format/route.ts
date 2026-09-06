@@ -12,8 +12,10 @@ import { isRoomState, type RoomState } from "@/lib/roomTypes";
  * draw, but the server decides what is allowed. A guest posting straight to
  * this route gets the same answer as a guest who found a hidden button.
  *
- * Once the first game has been dealt the format is locked — by then the
- * number of games is part of a result somebody has already played for.
+ * Once the first game has been dealt the format can only be *shortened* —
+ * a best of 7 can become a best of 5, but never the other way round, and
+ * never below the number of games already played. Lengthening it mid-series
+ * would move a finish line somebody has already been playing towards.
  */
 export async function POST(req: Request) {
   const user = await getAuthedUser(req);

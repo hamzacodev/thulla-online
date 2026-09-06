@@ -155,6 +155,78 @@ export function recordGame(
 }
 
 /**
+ * The formats a running series could be cut down to.
+ *
+ * Only shorter ones, and never shorter than the games already played — a
+ * best of 7 that is 3–1 down can become a best of 5, but not a best of 3,
+ * because game 4 has been played and a best of 3 has no game 4 to put it in.
+ */
+export function shorterFormats(series: SeriesState): number[] {
+  if (series.status !== "active") return [];
+  const out: number[] = [];
+  for (let n = MIN_BEST_OF; n < series.bestOf; n += 2) {
+    if (n >= series.gamesPlayed) out.push(n);
+  }
+  return out;
+}
+
+/** Why this series can't be cut to that length, or null if it can. */
+export function shortenProblem(series: SeriesState, bestOf: number): string | null {
+  if (series.status !== "active") return "That series is already finished.";
+  if (!isValidBestOf(bestOf)) {
+    return "A series has to be an odd number of games — an even one can finish level.";
+  }
+  if (bestOf >= series.bestOf) return "A series can only be made shorter, not longer.";
+  if (bestOf < series.gamesPlayed) {
+    return `${series.gamesPlayed} games have already been played, so it can't be cut to ${bestOf}.`;
+  }
+  return null;
+}
+
+/**
+ * Cuts a running series short.
+ *
+ * People misjudge how long they want to play, and a best of 7 at 11pm is a
+ * different proposition from a best of 7 at 8pm. Shortening lowers the
+ * target — best of 7 needs 4 wins, best of 5 needs 3 — so it can end the
+ * series immediately, and that is the point rather than an edge case:
+ * someone on 3 wins has already done enough for a best of 5.
+ *
+ * Nothing already played is touched. Games keep their numbers and their
+ * results; only the finish line moves.
+ */
+export function shortenSeries(
+  seriesIn: SeriesState,
+  bestOf: number,
+  now: number = Date.now()
+): SeriesResult {
+  const problem = shortenProblem(seriesIn, bestOf);
+  if (problem) return { series: seriesIn, error: problem };
+
+  const series: SeriesState = {
+    ...seriesIn,
+    bestOf,
+    winsRequired: winsRequired(bestOf),
+    players: seriesIn.players.map((p) => ({ ...p })),
+    games: [...seriesIn.games],
+    updatedAt: now,
+  };
+
+  const leader = seriesStandings(series)[0];
+  if (leader && leader.wins >= series.winsRequired) {
+    series.status = "completed";
+    series.winnerId = leader.id;
+  } else if (series.gamesPlayed >= series.bestOf) {
+    series.status = "completed";
+    series.winnerId = leader?.id ?? null;
+  } else {
+    series.currentGameNumber = series.gamesPlayed + 1;
+  }
+
+  return { series };
+}
+
+/**
  * Best first. Wins decide it; after that, whoever came second more often is
  * ahead of whoever came last more often, and so on down the table — so two
  * players level on wins are separated by how they actually finished rather

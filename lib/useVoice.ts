@@ -49,7 +49,19 @@ const DIRECT_ATTEMPTS = 2;
 const STALL_MS = 6000;
 
 const STUN: RTCIceServer[] = [
-  { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+  {
+    // Several, because a STUN server that is slow or blocked simply yields
+    // no candidate — and every extra one is another chance at a direct
+    // route, which is the path that needs no relay at all.
+    urls: [
+      "stun:stun.l.google.com:19302",
+      "stun:stun1.l.google.com:19302",
+      "stun:stun2.l.google.com:19302",
+      "stun:stun3.l.google.com:19302",
+      "stun:stun4.l.google.com:19302",
+      "stun:stun.cloudflare.com:3478",
+    ],
+  },
 ];
 
 /**
@@ -65,9 +77,16 @@ const STUN: RTCIceServer[] = [
 const FALLBACK_TURN: RTCIceServer[] = [
   {
     urls: [
+      // Port 80 is the one that actually speaks plain TURN: probing it gets
+      // a proper 401-with-realm challenge. Port 80 over TCP as well, for
+      // networks that drop UDP.
       "turn:openrelay.metered.ca:80",
-      "turn:openrelay.metered.ca:443",
-      "turn:openrelay.metered.ca:443?transport=tcp",
+      "turn:openrelay.metered.ca:80?transport=tcp",
+      // 443 is TLS there, not plain TCP. It was listed twice as `turn:`,
+      // which makes the server accept the socket and immediately hang up —
+      // two of the three candidates were dead on arrival, and a browser
+      // reports that as nothing at all.
+      "turns:openrelay.metered.ca:443?transport=tcp",
     ],
     username: "openrelayproject",
     credential: "openrelayproject",
@@ -122,6 +141,11 @@ export interface VoiceControls {
   onCall: Array<{ id: string; name: string }>;
   /** False when the browser has no WebRTC or no microphone API at all. */
   supported: boolean;
+  /**
+   * True once the TURN relay has given us a candidate. False while a call
+   * is failing tells you the relay is the problem, not the players.
+   */
+  relayAvailable: boolean;
   /** Hold-to-talk. The cure for two devices howling at each other. */
   pushToTalk: boolean;
   talking: boolean;
@@ -234,6 +258,15 @@ export function useVoice({
   const [supported, setSupported] = useState(true);
   const [pushToTalk, setPushToTalkState] = useState(false);
   const [talking, setTalkingState] = useState(false);
+  /**
+   * Whether the TURN relay ever handed us a candidate.
+   *
+   * This is the difference between "your network is awkward" and "the relay
+   * is not working", which look identical from the outside and need
+   * completely different things done about them. Without it we were
+   * guessing, and telling people to change wifi to fix a dead relay.
+   */
+  const [relayAvailable, setRelayAvailable] = useState(false);
 
   const linksRef = useRef(new Map<string, Link>());
   const silencedRef = useRef(new Set<string>());
@@ -249,6 +282,7 @@ export function useVoice({
   const talkingRef = useRef(false);
   const liveRef = useRef(false);
   const startingRef = useRef(false);
+  const relaySeenRef = useRef(false);
   const membersRef = useRef(members);
   const idRef = useRef(userId);
   /**
@@ -537,6 +571,12 @@ export function useVoice({
 
     pc.onicecandidate = (ev) => {
       if (!ev.candidate || !idRef.current) return;
+      // A relay candidate proves the TURN server answered us. No relay
+      // candidate anywhere, on any link, means it never did.
+      if (ev.candidate.type === "relay" && !relaySeenRef.current) {
+        relaySeenRef.current = true;
+        setRelayAvailable(true);
+      }
       send({ kind: "ice", from: myKey(), to: peerId, candidate: ev.candidate.toJSON() });
     };
 
@@ -769,6 +809,8 @@ export function useVoice({
     timersRef.current = {};
 
     pendingRef.current = [];
+    relaySeenRef.current = false;
+    setRelayAvailable(false);
     Array.from(linksRef.current.keys()).forEach(closeLink);
     void channelRef.current?.untrack();
 
@@ -1006,6 +1048,7 @@ export function useVoice({
     peers,
     onCall,
     supported,
+    relayAvailable,
     pushToTalk,
     talking,
     join: stableJoin,

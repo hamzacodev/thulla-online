@@ -2,7 +2,7 @@ import { supabaseAdmin } from "./supabaseAdmin";
 import { createGame, resolveTrick, standings } from "./engine/rules";
 import { writeResult, type HistoryPlayerInput } from "./recordResult";
 import { TRICK_LINGER_MS, type RoomState } from "./roomTypes";
-import { createSeries, isSeries, isValidBestOf, recordGame } from "./series/rules";
+import { createSeries, isSeries, isValidBestOf, recordGame, shortenSeries } from "./series/rules";
 import { shuffle } from "./engine/cards";
 import { thullaHoldMs } from "./thullaClips";
 
@@ -58,6 +58,19 @@ export function matchIsOver(state: RoomState): boolean {
  * the number is part of a result somebody has already played for.
  */
 export function setRoomFormat(state: RoomState, bestOf: number, now = Date.now()): string | null {
+  // A series already under way can still be cut short — people misjudge how
+  // long they want to play, and the alternative is abandoning the room. It
+  // can only ever get shorter, and never shorter than what's been played,
+  // so no finished game is erased or reinterpreted.
+  if (state.series && state.series.status === "active") {
+    const { series, error } = shortenSeries(state.series, bestOf, now);
+    if (error) return error;
+    state.series = series;
+    state.bestOf = bestOf;
+    state.updatedAt = now;
+    return null;
+  }
+
   if (state.status !== "waiting" || state.series) {
     return "The format is locked once the first game is dealt.";
   }

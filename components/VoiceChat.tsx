@@ -337,10 +337,29 @@ export function VoiceChat({
             headphones, or turn on push-to-talk.
           </p>
 
+          {/* Failing to reach one person is a bad pair. Failing to reach
+              *everyone* is not — that's the relay being unavailable, and
+              telling someone their network is at fault when it isn't sends
+              them off changing wifi for an hour to fix nothing. */}
           {failed.length > 0 && (
             <p className="mt-2 rounded-lg bg-chili-500/15 px-3 py-2 text-xs text-chili-400" role="alert">
-              Couldn&apos;t reach {failed.map((p) => p.name).join(", ")}. Your network is blocking
-              the connection — mobile data or a different wifi usually fixes it.
+              {!voice.relayAvailable ? (
+                <>
+                  Couldn&apos;t reach {failed.map((p) => p.name).join(", ")}. The relay server
+                  never answered, so there&apos;s no route for networks that block direct
+                  links — that&apos;s a setup problem on our side, not yours.
+                </>
+              ) : failed.length >= 2 && failed.length === voice.peers.length ? (
+                <>
+                  Couldn&apos;t reach anyone on the call, even through the relay. Worth
+                  trying a different network.
+                </>
+              ) : (
+                <>
+                  Couldn&apos;t reach {failed.map((p) => p.name).join(", ")}. Your network is
+                  blocking the connection — mobile data or a different wifi usually fixes it.
+                </>
+              )}
             </p>
           )}
         </>

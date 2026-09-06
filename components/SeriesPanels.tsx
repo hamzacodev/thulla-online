@@ -11,6 +11,7 @@ import {
   seriesLosers,
   seriesStandings,
   seriesWinner,
+  shorterFormats,
 } from "@/lib/series/rules";
 import type { SeriesState } from "@/lib/series/types";
 
@@ -119,15 +120,19 @@ export function SeriesInterval({
   avatars,
   onNextGame,
   busy,
+  onShorten,
 }: {
   series: SeriesState;
   meId?: string;
   avatars?: Record<string, string>;
   onNextGame: () => void;
   busy?: boolean;
+  /** Host only — cut the series short. Absent for everyone else. */
+  onShorten?: (bestOf: number) => void;
 }) {
   const table = seriesStandings(series);
   const last = series.games[series.games.length - 1];
+  const shorter = shorterFormats(series);
 
   return (
     <div className="panel anim-rise mt-3 p-4 text-left">
@@ -173,6 +178,34 @@ export function SeriesInterval({
       <button onClick={onNextGame} disabled={busy} className="btn btn-primary mt-3 !min-h-12 w-full">
         {busy ? "Dealing…" : `▶ Play game ${series.currentGameNumber}`}
       </button>
+
+      {/* Between games is the only sane place to offer this: everybody is
+          looking at the score, nobody is mid-hand, and it's the moment the
+          table actually decides whether it wants to keep going. */}
+      {onShorten && shorter.length > 0 && (
+        <div className="mt-3 border-t border-white/10 pt-3">
+          <p className="text-[0.68rem] uppercase tracking-wider text-brass-300">
+            Running long? Cut it short
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {shorter.map((n) => (
+              <button
+                key={n}
+                onClick={() => onShorten(n)}
+                disabled={busy}
+                className="btn btn-secondary !min-h-9 !px-3 !text-xs"
+                title={`Finish as a best of ${n} — first to ${Math.floor(n / 2) + 1}`}
+              >
+                Best of {n}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[0.68rem] leading-snug text-cream-400/80">
+            Games already played still count. If someone has already won enough, the series ends
+            there.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

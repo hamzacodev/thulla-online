@@ -12,6 +12,8 @@ import {
   seriesLoser,
   seriesLosers,
   seriesStandings,
+  shortenSeries,
+  shorterFormats,
   winsRequired,
 } from "../lib/series/rules";
 import type { SeriesState } from "../lib/series/types";
@@ -310,6 +312,49 @@ console.log("\nLosers");
   // Every loser is somebody who actually played.
   const ids = new Set(deep.players.map((p) => p.id));
   check(deep.games.every((g) => ids.has(gameLoserId(g) ?? "")), "every game names a real loser");
+  console.log(`  ${pass - before} passed`);
+}
+
+// ----------------------------------------------------- shortening a series
+console.log("\nShortening");
+{
+  const before = pass;
+
+  // 1-1 in a best of 7: cutting to 5 leaves it running, first to 3.
+  let s = series(7, ["Hamza", "Ahmed"]);
+  s = recordGame(s, { gameId: "S1", order: ["p0", "p1"] }).series;
+  s = recordGame(s, { gameId: "S2", order: ["p1", "p0"] }).series;
+  check(shorterFormats(s).join(",") === "3,5", `offers 3 and 5 (got ${shorterFormats(s).join(",")})`);
+  const cut = shortenSeries(s, 5);
+  check(!cut.error, `cut to 5 allowed — ${cut.error ?? ""}`);
+  check(cut.series.bestOf === 5 && cut.series.winsRequired === 3, "best of 5, first to 3");
+  check(cut.series.status === "active", "still running at 1-1");
+  check(cut.series.gamesPlayed === 2 && cut.series.games.length === 2, "played games survive untouched");
+  check(auditSeries(cut.series).length === 0, `audit clean — ${auditSeries(cut.series).join("; ")}`);
+
+  // 3-1 in a best of 7 is not over; as a best of 5 it already is.
+  let t = series(7, ["Hamza", "Ahmed"]);
+  t = recordGame(t, { gameId: "T1", order: ["p0", "p1"] }).series;
+  t = recordGame(t, { gameId: "T2", order: ["p0", "p1"] }).series;
+  t = recordGame(t, { gameId: "T3", order: ["p1", "p0"] }).series;
+  t = recordGame(t, { gameId: "T4", order: ["p0", "p1"] }).series;
+  check(t.status === "active", "3-1 in a best of 7 is still live");
+  const ended = shortenSeries(t, 5).series;
+  check(ended.status === "completed" && ended.winnerId === "p0", "as a best of 5 it's already won");
+  check(auditSeries(ended).length === 0, `audit clean — ${auditSeries(ended).join("; ")}`);
+
+  // Refusals.
+  check(!!shortenSeries(t, 9).error, "can't make it longer");
+  check(!!shortenSeries(t, 7).error, "can't 'cut' it to the same length");
+  check(!!shortenSeries(t, 3).error, "can't cut below the games already played");
+  check(!!shortenSeries(t, 4).error, "an even best-of is still refused");
+  check(!!shortenSeries(ended, 5).error, "a finished series can't be recut");
+  check(shorterFormats(ended).length === 0, "and offers no formats");
+
+  // The cut never rewrites history.
+  const before4 = t.games.map((g) => `${g.gameNumber}:${g.winnerId}`).join("|");
+  const after4 = ended.games.map((g) => `${g.gameNumber}:${g.winnerId}`).join("|");
+  check(before4 === after4, "game records are identical either side of the cut");
   console.log(`  ${pass - before} passed`);
 }
 
