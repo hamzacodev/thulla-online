@@ -46,7 +46,7 @@ export function TrumpPattaGameOver({
     <div className="relative flex flex-1 items-center justify-center px-4 py-8">
       <div className="panel anim-pop w-full max-w-md p-6 text-center">
         <p className="font-display text-3xl font-bold text-cream-50">
-          {iAmThief ? "You're the Thief! 🥷" : "Game Over 🃏"}
+          {iAmThief ? "You lost — you're the Thief! 🥷" : "Game Over 🃏"}
         </p>
         <p className="mt-1 text-sm text-cream-400">
           {iAmThief ? "Arre yaar! Agli baar zaroor. 😅" : "Safe nikal gaye! 🎉"}
@@ -55,10 +55,15 @@ export function TrumpPattaGameOver({
         <div className="brass-rule my-5" />
 
         <div className="rounded-xl border border-chili-400/30 bg-chili-500/10 p-3">
-          <p className="text-[0.7rem] uppercase tracking-wider text-chili-300">🥷 The Thief</p>
+          <p className="text-[0.7rem] uppercase tracking-wider text-chili-300">
+            😖 Loser — the Thief
+          </p>
           <p className="font-display mt-1 truncate text-xl font-bold text-cream-50">
             {thief?.name ?? "—"}
           </p>
+          {table[0] && (
+            <p className="mt-1 truncate text-xs text-cream-400">🏆 {table[0].name} won</p>
+          )}
         </div>
 
         {/* The two halves of the pair that never met. */}
@@ -99,7 +104,7 @@ export function TrumpPattaGameOver({
                   <Avatar src={avatars?.[p.id]} name={p.name} size={22} />
                   <span className="truncate font-semibold">{p.name}</span>
                 </span>
-                <span className="shrink-0 text-xs">{isThief ? "Thief 🥷" : "Safe"}</span>
+                <span className="shrink-0 text-xs">{isThief ? "😖 Loser · Thief 🥷" : "Safe"}</span>
               </li>
             );
           })}

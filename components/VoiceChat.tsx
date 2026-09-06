@@ -5,19 +5,46 @@ import { Avatar } from "./Avatar";
 import type { PeerState, VoiceControls, VoicePeer } from "@/lib/useVoice";
 
 /**
- * One peer's audio. Autoplay is allowed here because joining the call was a
- * deliberate tap, but Safari still likes to be asked explicitly.
+ * One peer's audio.
+ *
+ * Joining the call is a deliberate tap, so autoplay is normally allowed —
+ * but "normally" isn't good enough. A tab restored in the background, a
+ * stream that arrives minutes after the tap, or iOS deciding the gesture
+ * has gone stale all get the play() refused, and a refused play() is
+ * completely silent: no error on screen, connection green, nobody audible.
+ *
+ * So we keep asking. On the next tap anywhere, and whenever the tab comes
+ * back to the front, until it actually plays.
  */
 function PeerAudio({ peer }: { peer: VoicePeer }) {
   const ref = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el || el.srcObject === peer.stream) return;
-    el.srcObject = peer.stream;
-    el.play().catch(() => {
-      /* the element is muted or the tab is hidden; nothing to recover */
-    });
+    if (!el) return;
+    if (el.srcObject !== peer.stream) el.srcObject = peer.stream;
+
+    let done = false;
+    const tryPlay = () => {
+      if (done || !el.srcObject) return;
+      void el
+        .play()
+        .then(() => {
+          done = true;
+        })
+        .catch(() => {
+          /* still blocked; the next gesture gets another go */
+        });
+    };
+
+    tryPlay();
+    document.addEventListener("visibilitychange", tryPlay);
+    document.addEventListener("pointerdown", tryPlay);
+    return () => {
+      done = true;
+      document.removeEventListener("visibilitychange", tryPlay);
+      document.removeEventListener("pointerdown", tryPlay);
+    };
   }, [peer.stream]);
 
   return <audio ref={ref} autoPlay playsInline muted={peer.silenced} />;

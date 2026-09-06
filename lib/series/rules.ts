@@ -1,4 +1,4 @@
-import type { SeriesGameId, SeriesPlayer, SeriesResult, SeriesState } from "./types";
+import type { SeriesGame, SeriesGameId, SeriesPlayer, SeriesResult, SeriesState } from "./types";
 
 /** A single game is modelled as best-of-1, so one code path serves both. */
 export const SINGLE_GAME = 1;
@@ -190,6 +190,71 @@ export function mostOften(series: SeriesState, place: number): SeriesPlayer[] {
   const best = Math.max(0, ...series.players.map((p) => p.placings[place] ?? 0));
   if (best === 0) return [];
   return series.players.filter((p) => (p.placings[place] ?? 0) === best);
+}
+
+/**
+ * Who came last in one game.
+ *
+ * The finishing order is stored best-first, so the loser is simply the tail
+ * of it — no separate field to keep in step, and it works for every game in
+ * the platform because none of them can end without a full order.
+ */
+export function gameLoserId(game: SeriesGame): string | null {
+  return game.order.length > 1 ? game.order[game.order.length - 1] : null;
+}
+
+/** Their name, when we can still find them in the series. */
+export function gameLoserName(series: SeriesState, game: SeriesGame): string | null {
+  const id = gameLoserId(game);
+  if (!id) return null;
+  return series.players.find((p) => p.id === id)?.name ?? null;
+}
+
+/**
+ * How many games this player finished last.
+ *
+ * Last place is `players.length - 1` — the placings array is one slot per
+ * seat, so the final slot is the wooden spoon however many are playing.
+ */
+export function lossesOf(series: SeriesState, player: SeriesPlayer): number {
+  const last = series.players.length - 1;
+  return player.placings[last] ?? 0;
+}
+
+/**
+ * Who lost the series: whoever came last most often.
+ *
+ * Deliberately not "whoever won fewest games". In a five-player series
+ * plenty of people win nothing, and calling all four of them the loser
+ * tells you nothing — coming last is the thing everyone actually remembers.
+ *
+ * Ties are broken the same way the standings are, from the bottom: level on
+ * last places, whoever was also second-to-last more often is the loser.
+ * Null until at least one game has been played.
+ */
+export function seriesLoser(series: SeriesState): SeriesPlayer | null {
+  if (series.gamesPlayed === 0 || series.players.length < 2) return null;
+  const ranked = [...series.players].sort((a, b) => {
+    const diff = lossesOf(series, b) - lossesOf(series, a);
+    if (diff !== 0) return diff;
+    // Walk back up the table: worse finishes count against you first.
+    for (let place = series.players.length - 2; place >= 1; place--) {
+      const d = (b.placings[place] ?? 0) - (a.placings[place] ?? 0);
+      if (d !== 0) return d;
+    }
+    if (a.wins !== b.wins) return a.wins - b.wins;
+    return a.name.localeCompare(b.name);
+  });
+  const worst = ranked[0];
+  return worst && lossesOf(series, worst) > 0 ? worst : null;
+}
+
+/** Everyone tied on last places, when the wooden spoon is shared. */
+export function seriesLosers(series: SeriesState): SeriesPlayer[] {
+  const worst = seriesLoser(series);
+  if (!worst) return [];
+  const n = lossesOf(series, worst);
+  return series.players.filter((p) => lossesOf(series, p) === n);
 }
 
 /** How many more wins this player needs. */

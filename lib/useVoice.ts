@@ -37,6 +37,16 @@ const LEVEL_INTERVAL_MS = 140;
 const SWEEP_MS = 4000;
 /** Direct attempts before we stop trying and force everything through TURN. */
 const DIRECT_ATTEMPTS = 2;
+/**
+ * How long a link may sit not-yet-connected before we assume its offer went
+ * missing and try again.
+ *
+ * Signalling rides Supabase broadcast, which is fire-and-forget: an offer
+ * that never arrives produces no error, so both browsers simply wait on
+ * each other forever. Nothing failed, so nothing retried — which is exactly
+ * the shape of "I'm connected but they can't hear me".
+ */
+const STALL_MS = 6000;
 
 const STUN: RTCIceServer[] = [
   { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
@@ -150,7 +160,9 @@ interface PresenceMeta {
 type Signal =
   | { kind: "offer"; from: string; to: string; sdp: RTCSessionDescriptionInit }
   | { kind: "answer"; from: string; to: string; sdp: RTCSessionDescriptionInit }
-  | { kind: "ice"; from: string; to: string; candidate: RTCIceCandidateInit };
+  | { kind: "ice"; from: string; to: string; candidate: RTCIceCandidateInit }
+  /** "I'm still waiting on you" — only the designated caller can act on it. */
+  | { kind: "nudge"; from: string; to: string };
 
 interface Link {
   pc: RTCPeerConnection;
@@ -166,6 +178,16 @@ interface Link {
   speakingUntil: number;
   /** ICE that arrived before the remote description did. */
   queued: RTCIceCandidateInit[];
+  /** When the current state began. Drives the stall watchdog. */
+  since: number;
+  /**
+   * Perfect negotiation: when both sides offer at once, the polite one
+   * gives way. Derived from the two keys, so the two browsers always
+   * disagree about who is polite — which is the point.
+   */
+  polite: boolean;
+  /** An offer of ours is in flight; a collision is possible. */
+  makingOffer: boolean;
   analyser: AnalyserNode | null;
   source: MediaStreamAudioSourceNode | null;
 }
@@ -238,6 +260,8 @@ export function useVoice({
   /** Presence keys currently allowed to signal us — seated, and on the call. */
   const allowedRef = useRef(new Set<string>());
   const timersRef = useRef<{ level?: number; sweep?: number }>({});
+  /** Signals that arrived while the microphone prompt was still open. */
+  const pendingRef = useRef<Signal[]>([]);
   const hangUpRef = useRef<() => void>(() => {});
   const lastSignature = useRef("");
   const lastRoster = useRef("");
@@ -364,6 +388,7 @@ export function useVoice({
     link.pc.onicecandidate = null;
     link.pc.ontrack = null;
     link.pc.onconnectionstatechange = null;
+    link.pc.oniceconnectionstatechange = null;
     try {
       link.pc.close();
     } catch {
@@ -371,16 +396,55 @@ export function useVoice({
     }
   };
 
+  /** Moves a link to a new state and restarts its stall clock. */
+  const mark = (link: Link, state: PeerState) => {
+    if (link.state !== state) link.state = state;
+    link.since = Date.now();
+  };
+
+  /**
+   * Makes sure our microphone is actually attached to this connection.
+   *
+   * Tracks are added when a link is built, which is normally enough — but a
+   * link rebuilt at an awkward moment, or built in the gap before the mic
+   * arrived, would otherwise negotiate perfectly and carry no audio. That
+   * failure is completely silent on this end: the call looks connected and
+   * the other side just can't hear you.
+   */
+  const ensureTracks = (link: Link) => {
+    const local = streamRef.current;
+    if (!local) return;
+    const senders = link.pc.getSenders();
+    local.getTracks().forEach((track) => {
+      const sender = senders.find((x) => x.track?.kind === track.kind);
+      if (!sender) {
+        try {
+          link.pc.addTrack(track, local);
+        } catch {
+          /* already attached */
+        }
+      } else if (sender.track !== track) {
+        void sender.replaceTrack(track).catch(() => {});
+      }
+    });
+  };
+
   const offerTo = async (peerId: string, iceRestart = false) => {
     const link = linksRef.current.get(peerId);
     if (!link || !idRef.current) return;
     const me = myKey();
+    ensureTracks(link);
+    link.makingOffer = true;
     try {
       const offer = await link.pc.createOffer({ iceRestart });
+      // Someone else's negotiation landed while we were building this one.
+      if (link.pc.signalingState !== "stable" && !iceRestart) return;
       await link.pc.setLocalDescription(offer);
       send({ kind: "offer", from: me, to: peerId, sdp: { type: offer.type, sdp: offer.sdp } });
     } catch {
-      /* the sweep comes back around */
+      /* the watchdog comes back around */
+    } finally {
+      link.makingOffer = false;
     }
   };
 
@@ -399,17 +463,22 @@ export function useVoice({
     link.attempts++;
 
     if (!isCaller) {
-      // Nothing to drive from this side; show honest state and wait for
-      // their offer.
-      link.state = link.attempts > DIRECT_ATTEMPTS + 1 ? "failed" : "retrying";
+      // We can't offer — but we can say we're still waiting, which is the
+      // one thing that rescues an offer lost in transit. Silently sitting
+      // here is what made this look like a dead call.
+      mark(link, link.attempts > DIRECT_ATTEMPTS + 2 ? "failed" : "retrying");
+      send({ kind: "nudge", from: me, to: peerId });
       publish();
       return;
     }
 
     if (link.attempts <= DIRECT_ATTEMPTS) {
-      link.state = "retrying";
+      mark(link, "retrying");
       publish();
-      void offerTo(peerId, true);
+      // No remote description means this never got off the ground: the
+      // offer went missing rather than the connection failing. Re-send it
+      // whole. An ICE restart only helps a link that once worked.
+      void offerTo(peerId, !!link.pc.remoteDescription);
       return;
     }
 
@@ -421,13 +490,13 @@ export function useVoice({
       closeLink(peerId);
       const fresh = ensureLink(peerId, { key: peerId, userId: link.userId, name, muted }, true);
       fresh.attempts = attempts;
-      fresh.state = "relaying";
+      mark(fresh, "relaying");
       publish();
       void offerTo(peerId);
       return;
     }
 
-    link.state = "failed";
+    mark(link, "failed");
     publish();
   };
 
@@ -450,13 +519,21 @@ export function useVoice({
       relayed: relayOnly,
       speakingUntil: 0,
       queued: [],
+      // Stamped by `mark` below rather than inline: reading the clock in
+      // an object literal here trips the purity lint, since this function
+      // is declared in the render body even though it only ever runs from
+      // an event or a timer.
+      since: 0,
+      // The caller (`me < id`) is the impolite one: on a collision it keeps
+      // its offer and the other side rolls back.
+      polite: myKey() > peerId,
+      makingOffer: false,
       analyser: null,
       source: null,
     };
+    mark(link, link.state);
     linksRef.current.set(peerId, link);
-
-    const local = streamRef.current;
-    if (local) local.getTracks().forEach((track) => pc.addTrack(track, local));
+    ensureTracks(link);
 
     pc.onicecandidate = (ev) => {
       if (!ev.candidate || !idRef.current) return;
@@ -471,15 +548,22 @@ export function useVoice({
       publish();
     };
 
+    // Chrome can report the ICE agent failing without ever moving
+    // connectionState, which leaves a dead link looking merely quiet.
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === "failed") recover(peerId);
+    };
+
     pc.onconnectionstatechange = () => {
       switch (pc.connectionState) {
         case "connected":
-          link.state = "live";
+          mark(link, "live");
           link.attempts = 0;
           break;
         case "disconnected":
-          // Often transient — a phone changing cell. Give it a beat.
-          if (link.state === "live") link.state = "retrying";
+          // Often transient — a phone changing cell. Give it a beat, and
+          // let the watchdog take it from here if it doesn't come back.
+          if (link.state === "live") mark(link, "retrying");
           break;
         case "failed":
           recover(peerId);
@@ -506,12 +590,27 @@ export function useVoice({
 
   const onSignal = async (signal: Signal) => {
     const me = myKey();
-    if (!idRef.current || !liveRef.current || signal.to !== me || signal.from === me) return;
+    if (!idRef.current || signal.to !== me || signal.from === me) return;
+    if (!liveRef.current) {
+      // Mid-join: the microphone prompt is still open. Holding the offer is
+      // the difference between connecting a second later and both sides
+      // waiting on each other until the watchdog notices.
+      if (startingRef.current && pendingRef.current.length < 64) pendingRef.current.push(signal);
+      return;
+    }
     // Only people holding a seat at this table get a connection, so knowing
     // the room code is not enough to listen in. The allowed set is rebuilt
     // from presence on every sync, so it is always the seated players
     // currently on the call — never a stale key from a closed tab.
     if (!allowedRef.current.has(signal.from)) return;
+
+    if (signal.kind === "nudge") {
+      // They're still waiting on us. Only the caller can fix that, and
+      // re-offering costs nothing.
+      const link = linksRef.current.get(signal.from);
+      if (link && me < signal.from) void offerTo(signal.from, !!link.pc.remoteDescription);
+      return;
+    }
 
     if (signal.kind === "ice") {
       const link = linksRef.current.get(signal.from);
@@ -529,25 +628,31 @@ export function useVoice({
     }
 
     if (signal.kind === "offer") {
-      // An offer on a settled link means the other side rebuilt theirs (or
-      // restarted ICE, which arrives the same way). Renegotiating in place
-      // is right for an ICE restart; a genuinely new session is caught by
-      // the state check below. This also settles the case where both sides
-      // somehow offered: whoever receives one yields.
-      const current = linksRef.current.get(signal.from);
-      const wedged =
-        current?.pc.signalingState === "have-local-offer" ||
-        current?.pc.connectionState === "failed";
-      if (current && wedged) closeLink(signal.from);
+      // Perfect negotiation. Tearing the link down whenever an offer
+      // arrived on a busy connection was the wrong move: a re-offer that
+      // crossed with ours destroyed a link that was seconds from working,
+      // and the rebuild raced the same way again.
       const link = ensureLink(signal.from);
+      const collision = link.makingOffer || link.pc.signalingState !== "stable";
+      if (collision && !link.polite) {
+        // We hold the floor. They'll roll back and take ours.
+        return;
+      }
       try {
+        if (collision) {
+          // Drop our half-finished offer and take theirs instead.
+          await link.pc.setLocalDescription({ type: "rollback" });
+        }
         await link.pc.setRemoteDescription(signal.sdp);
         await drainIce(link);
+        ensureTracks(link);
         const answer = await link.pc.createAnswer();
         await link.pc.setLocalDescription(answer);
         send({ kind: "answer", from: me, to: signal.from, sdp: { type: answer.type, sdp: answer.sdp } });
       } catch {
-        closeLink(signal.from);
+        // Leave the link standing — the watchdog retries it. Closing here
+        // is how a recoverable hiccup became a permanently silent peer.
+        mark(link, "retrying");
       }
       publish();
       return;
@@ -555,11 +660,13 @@ export function useVoice({
 
     const link = linksRef.current.get(signal.from);
     if (!link) return;
+    // An answer is only meaningful against an offer we're still holding.
+    if (link.pc.signalingState !== "have-local-offer") return;
     try {
       await link.pc.setRemoteDescription(signal.sdp);
       await drainIce(link);
     } catch {
-      /* a stale answer; the sweep rebuilds the link if it really is dead */
+      /* a stale answer; the watchdog rebuilds the link if it really is dead */
     }
   };
 
@@ -615,9 +722,19 @@ export function useVoice({
       }
       ensureLink(id, meta);
       // Exactly one side offers, and it is always the same side: comparing
-      // the two user ids gives both browsers the same answer with no extra
+      // the two keys gives both browsers the same answer with no extra
       // round trip and no glare to resolve.
       if (me < id) void offerTo(id);
+    });
+
+    // Anything that hasn't connected by now is stuck rather than slow.
+    // Nothing else notices this case: a dropped offer never fails, so no
+    // state change fires and both browsers wait forever. This is the check
+    // that turns "it just doesn't work sometimes" into a retry.
+    const now = Date.now();
+    linksRef.current.forEach((link, id) => {
+      if (link.state === "live" || now - link.since < STALL_MS) return;
+      recover(id);
     });
 
     publish();
@@ -651,6 +768,7 @@ export function useVoice({
     if (timersRef.current.sweep) window.clearInterval(timersRef.current.sweep);
     timersRef.current = {};
 
+    pendingRef.current = [];
     Array.from(linksRef.current.keys()).forEach(closeLink);
     void channelRef.current?.untrack();
 
@@ -755,6 +873,9 @@ export function useVoice({
     } satisfies PresenceMeta);
 
     reconcile();
+    // Whatever arrived while the mic prompt was open is now answerable.
+    const held = pendingRef.current.splice(0);
+    for (const signal of held) void onSignal(signal);
     timersRef.current.level = window.setInterval(measure, LEVEL_INTERVAL_MS);
     timersRef.current.sweep = window.setInterval(reconcile, SWEEP_MS);
   };

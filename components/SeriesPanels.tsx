@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { Avatar } from "./Avatar";
-import { formatLabel, mostOften, placingSummary, seriesStandings, seriesWinner } from "@/lib/series/rules";
+import {
+  formatLabel,
+  gameLoserName,
+  lossesOf,
+  mostOften,
+  placingSummary,
+  seriesLosers,
+  seriesStandings,
+  seriesWinner,
+} from "@/lib/series/rules";
 import type { SeriesState } from "@/lib/series/types";
 
 const PLACE = ["🥇", "🥈", "🥉"];
@@ -129,6 +138,13 @@ export function SeriesInterval({
         Game {last?.gameNumber ?? series.gamesPlayed} complete
         {last?.winnerName ? ` — ${last.winnerName} won it` : ""}
       </p>
+      {/* Both ends of the table. Who won is only half of what people want
+          to know when the game finishes. */}
+      {last && gameLoserName(series, last) && (
+        <p className="mt-0.5 text-sm text-chili-400">
+          😖 {gameLoserName(series, last)} lost game {last.gameNumber}
+        </p>
+      )}
 
       <ul className="mt-3 space-y-1.5">
         {table.map((p) => (
@@ -140,6 +156,11 @@ export function SeriesInterval({
           >
             <Avatar src={avatars?.[p.id]} name={p.name} size={20} />
             <span className="min-w-0 flex-1 truncate text-cream-50">{p.name}</span>
+            {lossesOf(series, p) > 0 && (
+              <span className="tabular shrink-0 text-[0.68rem] text-chili-400">
+                {lossesOf(series, p)} lost
+              </span>
+            )}
             <span className="tabular font-display font-bold text-cream-50">{p.wins}</span>
           </li>
         ))}
@@ -188,6 +209,9 @@ export function SeriesComplete({
     .map((place) => ({ place, players: mostOften(series, place) }))
     .filter((row) => row.players.length > 0);
 
+  const losers = seriesLosers(series);
+  const iLost = losers.some((p) => p.id === meId);
+
   const ordinal = (n: number) => {
     const k = n + 1;
     return `${k}${k === 1 ? "st" : k === 2 ? "nd" : k === 3 ? "rd" : "th"}`;
@@ -206,7 +230,20 @@ export function SeriesComplete({
         <p className="mt-2 text-base font-semibold text-cream-100">
           {winner ? `🏆 ${winner.name} won the series` : "Series finished"}
         </p>
+        {/* The other end of the series. Whoever came last most often — not
+            whoever won fewest, which in a five-player series is most of the
+            table and says nothing. */}
+        {losers.length > 0 && (
+          <p className="mt-1 text-sm font-semibold text-chili-400">
+            😖 {losers.map((p) => p.name).join(" & ")} lost the series
+            {losers.length === 1 ? "" : " (tied)"} — last in{" "}
+            {lossesOf(series, losers[0])} of {series.gamesPlayed}
+          </p>
+        )}
         {iWon && <p className="mt-1 text-sm text-mint-300">Wah bhai! Poori series jeet li 🔥</p>}
+        {iLost && !iWon && (
+          <p className="mt-1 text-sm text-cream-400">Koi baat nahi — agli series apki 💪</p>
+        )}
         <p className="font-display tabular mt-4 text-4xl font-bold text-cream-50 lg:text-5xl">
           {table.map((p) => p.wins).join(" – ")}
         </p>
@@ -280,9 +317,12 @@ export function SeriesComplete({
           <ul className="space-y-1 rounded-xl border border-white/10 bg-white/[0.04] p-3">
             {series.games.map((g) => (
               <li key={g.gameNumber} className="flex items-baseline justify-between gap-2 text-xs">
-                <span className="tabular text-cream-400">Game {g.gameNumber}</span>
-                <span className="min-w-0 truncate text-cream-100">
-                  {g.winnerName ? `${g.winnerName} won` : "no winner"}
+                <span className="tabular shrink-0 text-cream-400">Game {g.gameNumber}</span>
+                <span className="min-w-0 truncate text-right text-cream-100">
+                  {g.winnerName ? `🏆 ${g.winnerName}` : "no winner"}
+                  {gameLoserName(series, g) && (
+                    <span className="text-chili-400"> · 😖 {gameLoserName(series, g)}</span>
+                  )}
                 </span>
               </li>
             ))}

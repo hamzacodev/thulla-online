@@ -18,18 +18,19 @@ export function relativeDay(iso: string): string {
  * What each game calls coming last.
  *
  * `is_thulla` is the shared column for it — every game here has exactly one
- * loser — but the word isn't shared: Bluff's is plain last place and
- * Trump-Patta's is the Thief. Calling a Trump-Patta loss a "Thulla" is
- * simply the wrong game's vocabulary.
+ * loser — and every game now says "Loser", so a player reading their own
+ * history sees one word rather than three. Each game's own flavour name
+ * rides along behind it: Trump-Patta's Thief is the mechanic that made you
+ * the loser, not a different outcome.
  */
 export function loserName(game?: string | null): { text: string; icon: string } {
   switch (game) {
     case "trump_patta":
-      return { text: "Thief", icon: "🥷" };
+      return { text: "Loser · Thief", icon: "😖" };
     case "bluff":
-      return { text: "Last", icon: "😅" };
+      return { text: "Loser", icon: "😖" };
     default:
-      return { text: "Thulla", icon: "😂" };
+      return { text: "Loser · Thulla", icon: "😖" };
   }
 }
 
@@ -76,7 +77,7 @@ export function HistoryCard({ record }: { record: GameRecord }) {
           Winner: <span className="text-cream-100">{record.winnerName ?? "—"}</span>
         </span>
         <span>
-          Thulla: <span className="text-cream-100">{record.thullaName ?? "—"}</span>
+          Loser: <span className="text-cream-100">{record.thullaName ?? "—"}</span>
         </span>
       </div>
     </Link>

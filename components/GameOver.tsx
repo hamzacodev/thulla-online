@@ -89,7 +89,7 @@ export function GameOver({
             <p className="mt-1 truncate font-semibold text-cream-50">{winner?.name ?? "—"}</p>
           </div>
           <div className="rounded-xl border border-chili-400/30 bg-chili-500/10 p-3">
-            <p className="text-[0.7rem] uppercase tracking-wider text-chili-400">😂 Thulla</p>
+            <p className="text-[0.7rem] uppercase tracking-wider text-chili-400">😖 Loser</p>
             <p className="mt-1 truncate font-semibold text-cream-50">{thulla?.name ?? "—"}</p>
           </div>
         </div>
@@ -97,12 +97,12 @@ export function GameOver({
         <p className="mt-4 text-base font-semibold text-cream-100">
           {state.conceded?.length && thulla
             ? iAmThulla
-              ? "🏳️ You quit — that's the Thulla."
-              : `🏳️ ${thulla.name} quit, so that's the Thulla.`
+              ? "🏳️ You quit — so you lost this one."
+              : `🏳️ ${thulla.name} quit, so they lost this one.`
             : iAmThulla
-            ? `😂 ${t("thullaYou", lang)}`
+            ? `😖 ${t("thullaYou", lang)}`
             : thulla
-            ? `😂 ${phrase.isThulla(thulla.name, lang)}`
+            ? `😖 ${phrase.isThulla(thulla.name, lang)}`
             : ""}
         </p>
 
@@ -133,7 +133,7 @@ export function GameOver({
                     : quit
                     ? "🏳️ quit"
                     : isThulla
-                    ? "😂 Thulla"
+                    ? "😖 Loser"
                     : `${i + 1}${["st", "nd", "rd"][i] ?? "th"}`}
                 </span>
               </li>

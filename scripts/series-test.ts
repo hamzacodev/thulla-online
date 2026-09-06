@@ -2,10 +2,15 @@ import {
   auditSeries,
   createSeries,
   formatLabel,
+  gameLoserId,
+  gameLoserName,
   isValidBestOf,
+  lossesOf,
   mostOften,
   placingSummary,
   recordGame,
+  seriesLoser,
+  seriesLosers,
   seriesStandings,
   winsRequired,
 } from "../lib/series/rules";
@@ -259,6 +264,54 @@ console.log("Placings");
   check(table[0].name === "Adil", `whoever came 2nd most is first (got ${table[0].name})`);
 }
 console.log(`  ${pass - b9} passed`);
+
+// ---------------------------------------------------------------- losers
+console.log("\nLosers");
+{
+  const before = pass;
+
+  let s = series(5, ["Hamza", "Ahmed", "Ali", "Usman"]);
+  s = recordGame(s, { gameId: "L1", order: ["p0", "p1", "p2", "p3"] }).series;
+  s = recordGame(s, { gameId: "L2", order: ["p1", "p0", "p2", "p3"] }).series;
+  s = recordGame(s, { gameId: "L3", order: ["p0", "p2", "p1", "p3"] }).series;
+
+  check(gameLoserId(s.games[0]) === "p3", "the loser is the tail of the order");
+  check(gameLoserName(s, s.games[0]) === "Usman", "and we can name them");
+  check(lossesOf(s, s.players[3]) === 3, `Usman lost all three (got ${lossesOf(s, s.players[3])})`);
+  check(lossesOf(s, s.players[0]) === 0, "the series leader has lost none");
+  check(seriesLoser(s)?.name === "Usman", "Usman is the series loser");
+  check(seriesLosers(s).length === 1, "and he owns it alone");
+
+  // Nobody has come last yet: there is no loser to name.
+  const fresh = series(3, ["A", "B"]);
+  check(seriesLoser(fresh) === null, "no games played means no loser");
+
+  // A shared wooden spoon is reported as shared, not resolved alphabetically.
+  let tied = series(3, ["Zara", "Adil"]);
+  tied = recordGame(tied, { gameId: "T1", order: ["p0", "p1"] }).series;
+  tied = recordGame(tied, { gameId: "T2", order: ["p1", "p0"] }).series;
+  check(seriesLosers(tied).length === 2, "one loss each is a tie for the spoon");
+
+  // Level on last places, separated by who was second-to-last more often.
+  // C and D come last twice each; D was also 3rd twice to C's once, so the
+  // spoon is D's. Alphabetical order would have said C — the point is that
+  // it doesn't get a vote until the finishes run out.
+  let deep = series(7, ["A", "B", "C", "D"]);
+  deep = recordGame(deep, { gameId: "D1", order: ["p0", "p1", "p2", "p3"] }).series;
+  deep = recordGame(deep, { gameId: "D2", order: ["p0", "p1", "p3", "p2"] }).series;
+  deep = recordGame(deep, { gameId: "D3", order: ["p0", "p2", "p1", "p3"] }).series;
+  deep = recordGame(deep, { gameId: "D4", order: ["p0", "p1", "p3", "p2"] }).series;
+  const cLosses = lossesOf(deep, deep.players[2]);
+  const dLosses = lossesOf(deep, deep.players[3]);
+  check(cLosses === dLosses && cLosses === 2, `C and D lost two each (${cLosses}/${dLosses})`);
+  check(deep.players[3].placings[2] === 2, `D was 3rd twice (got ${deep.players[3].placings[2]})`);
+  check(seriesLoser(deep)?.name === "D", `D was 3rd more often, so D is the loser (got ${seriesLoser(deep)?.name})`);
+
+  // Every loser is somebody who actually played.
+  const ids = new Set(deep.players.map((p) => p.id));
+  check(deep.games.every((g) => ids.has(gameLoserId(g) ?? "")), "every game names a real loser");
+  console.log(`  ${pass - before} passed`);
+}
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

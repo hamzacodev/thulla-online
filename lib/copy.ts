@@ -50,8 +50,8 @@ export const copy = {
   pickedUpYou: S("Oho! You picked up the pile", "Oho! Saare patte tumhare"),
   couldNotFollow: S("couldn't follow suit", "ke paas suit nahi tha"),
 
-  thullaIs: S("is the Thulla!", "Thulla ban gaya!"),
-  thullaYou: S("Ohooo! You're the Thulla", "Ohooo! Thulla ban gaye"),
+  thullaIs: S("lost the game!", "haar gaya — Thulla ban gaya!"),
+  thullaYou: S("Ohooo! You lost this one", "Ohooo! Aap haar gaye — Thulla"),
   winner: S("Winner", "Jeet gaya"),
   gameOver: S("Game Over", "Khel khatam"),
   greatGame: S("Kya game thi boss!", "Kya game thi boss!"),

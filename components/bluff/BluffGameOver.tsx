@@ -32,8 +32,12 @@ export function BluffGameOver({
 }) {
   const table = bluffStandings(state);
   const winner = table[0];
+  // Standings are best-first, so the loser is the tail — the last player
+  // still holding cards when everyone else had gone out.
+  const loser = table.length > 1 ? table[table.length - 1] : null;
   const me = state.players[viewSeat];
   const iWon = winner?.seat === viewSeat;
+  const iLost = loser?.seat === viewSeat;
   const mine = me?.stats;
 
   return (
@@ -41,16 +45,26 @@ export function BluffGameOver({
       <div className="panel anim-pop w-full max-w-md p-6 text-center">
         <p className="font-display text-3xl font-bold text-cream-50">Game Over 🃏</p>
         <p className="mt-1 text-sm text-cream-400">
-          {iWon ? "Wah bhai! Sab cards khatam! 🔥" : "Agli baar dekhte hain 😎"}
+          {iWon
+            ? "Wah bhai! Sab cards khatam! 🔥"
+            : iLost
+            ? "Aap haar gaye — sab se aakhir 😖"
+            : "Agli baar dekhte hain 😎"}
         </p>
 
         <div className="brass-rule my-5" />
 
-        <div className="rounded-xl border border-brass-400/25 bg-brass-400/10 p-3">
-          <p className="text-[0.7rem] uppercase tracking-wider text-brass-300">🏆 Winner</p>
-          <p className="font-display mt-1 truncate text-xl font-bold text-cream-50">
-            {winner?.name ?? "—"}
-          </p>
+        {/* Both ends of the table, side by side — every game names a loser
+            as plainly as it names a winner. */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-brass-400/25 bg-brass-400/10 p-3">
+            <p className="text-[0.7rem] uppercase tracking-wider text-brass-300">🏆 Winner</p>
+            <p className="mt-1 truncate font-semibold text-cream-50">{winner?.name ?? "—"}</p>
+          </div>
+          <div className="rounded-xl border border-chili-400/30 bg-chili-500/10 p-3">
+            <p className="text-[0.7rem] uppercase tracking-wider text-chili-400">😖 Loser</p>
+            <p className="mt-1 truncate font-semibold text-cream-50">{loser?.name ?? "—"}</p>
+          </div>
         </div>
 
         <ol className="mt-5 space-y-1.5 text-left">
@@ -58,8 +72,8 @@ export function BluffGameOver({
             <li
               key={p.seat}
               className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
-                p.seat === viewSeat ? "bg-white/[0.06] ring-1 ring-brass-300/50" : "bg-white/[0.04]"
-              }`}
+                p.seat === loser?.seat ? "bg-chili-500/10 ring-1 ring-chili-400/30" : "bg-white/[0.04]"
+              } ${p.seat === viewSeat ? "ring-1 ring-brass-300/50" : ""}`}
             >
               <span className="flex min-w-0 items-center gap-2">
                 <span className="w-6 shrink-0 text-center">{PLACE[i] ?? `${i + 1}️⃣`}</span>
@@ -72,7 +86,7 @@ export function BluffGameOver({
                 {p.seat === viewSeat && <span className="shrink-0 text-[0.65rem] text-brass-300">(you)</span>}
               </span>
               <span className="tabular shrink-0 text-xs text-cream-400">
-                {p.hand.length > 0 ? `${p.hand.length} left` : "out"}
+                {p.seat === loser?.seat ? "😖 Loser" : p.hand.length > 0 ? `${p.hand.length} left` : "out"}
               </span>
             </li>
           ))}
