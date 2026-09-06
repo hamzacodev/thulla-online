@@ -504,6 +504,7 @@ export default function RoomPage() {
                 onShorten={
                   state.hostId === userId ? (bestOf) => void handleFormat(bestOf) : undefined
                 }
+                invite={{ code, seatsFree: state.maxPlayers - state.seats.length }}
               />
             ) : undefined
           }

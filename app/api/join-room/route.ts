@@ -30,8 +30,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: roomCode });
   }
 
-  if (state.status !== "waiting") {
-    return NextResponse.json({ error: "That game has already started." }, { status: 400 });
+  // Between games of a running series is a perfectly good moment to sit
+  // down: nobody is mid-hand, and the next deal builds its table from the
+  // seats anyway. Mid-game is still refused — there is no way to hand
+  // somebody a hand that has already been dealt.
+  const betweenGames =
+    state.status === "finished" &&
+    !!state.series &&
+    state.series.status === "active" &&
+    (!state.game || state.game.phase === "finished");
+
+  if (state.status !== "waiting" && !betweenGames) {
+    return NextResponse.json(
+      {
+        error:
+          state.series && state.series.status === "active"
+            ? "That game is in progress — you can join when this one finishes."
+            : "That game has already started.",
+      },
+      { status: 400 }
+    );
   }
   if (state.seats.length >= state.maxPlayers) {
     return NextResponse.json({ error: `Room is full (${state.maxPlayers} players).` }, { status: 400 });

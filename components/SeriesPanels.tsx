@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Avatar } from "./Avatar";
 import {
@@ -12,6 +13,7 @@ import {
   seriesStandings,
   seriesWinner,
   shorterFormats,
+  shortenOutcome,
 } from "@/lib/series/rules";
 import type { SeriesState } from "@/lib/series/types";
 
@@ -121,6 +123,7 @@ export function SeriesInterval({
   onNextGame,
   busy,
   onShorten,
+  invite,
 }: {
   series: SeriesState;
   meId?: string;
@@ -129,10 +132,13 @@ export function SeriesInterval({
   busy?: boolean;
   /** Host only — cut the series short. Absent for everyone else. */
   onShorten?: (bestOf: number) => void;
+  /** Online rooms: the code to pass on, and how many chairs are spare. */
+  invite?: { code: string; seatsFree: number };
 }) {
   const table = seriesStandings(series);
   const last = series.games[series.games.length - 1];
   const shorter = shorterFormats(series);
+  const [confirming, setConfirming] = useState<number | null>(null);
 
   return (
     <div className="panel anim-rise mt-3 p-4 text-left">
@@ -175,6 +181,17 @@ export function SeriesInterval({
         Next: game {series.currentGameNumber} · first to {series.winsRequired} takes it
       </p>
 
+      {/* The gap between games is the only moment somebody can be dealt in,
+          so it's the only moment worth saying so. Nobody thinks to try the
+          room code again once a match is under way. */}
+      {invite && invite.seatsFree > 0 && (
+        <p className="mt-1.5 text-xs text-mint-300">
+          🪑 {invite.seatsFree} {invite.seatsFree === 1 ? "seat" : "seats"} free — anyone joining{" "}
+          <span className="font-semibold tracking-wide">{invite.code}</span> now is dealt into game{" "}
+          {series.currentGameNumber}.
+        </p>
+      )}
+
       <button onClick={onNextGame} disabled={busy} className="btn btn-primary mt-3 !min-h-12 w-full">
         {busy ? "Dealing…" : `▶ Play game ${series.currentGameNumber}`}
       </button>
@@ -188,22 +205,51 @@ export function SeriesInterval({
             Running long? Cut it short
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {shorter.map((n) => (
-              <button
-                key={n}
-                onClick={() => onShorten(n)}
-                disabled={busy}
-                className="btn btn-secondary !min-h-9 !px-3 !text-xs"
-                title={`Finish as a best of ${n} — first to ${Math.floor(n / 2) + 1}`}
-              >
-                Best of {n}
-              </button>
-            ))}
+            {shorter.map((n) => {
+              const outcome = shortenOutcome(series, n);
+              const armed = confirming === n;
+              return (
+                <button
+                  key={n}
+                  // A cut that ends the match asks twice. It is the right
+                  // answer by the rules — first to 3, and somebody has 3 —
+                  // but finding that out by having your series end is not
+                  // the way to learn it.
+                  onClick={() => {
+                    if (outcome.endsNow && !armed) setConfirming(n);
+                    else {
+                      setConfirming(null);
+                      onShorten(n);
+                    }
+                  }}
+                  disabled={busy}
+                  className={`btn !min-h-9 !px-3 !text-xs ${
+                    armed ? "btn-primary" : "btn-secondary"
+                  }`}
+                  title={
+                    outcome.endsNow
+                      ? `Best of ${n} is first to ${Math.floor(n / 2) + 1} — already reached`
+                      : `Finish as a best of ${n} — first to ${Math.floor(n / 2) + 1}`
+                  }
+                >
+                  Best of {n}
+                  {outcome.endsNow && !armed && " ⚠"}
+                  {armed && " — tap again"}
+                </button>
+              );
+            })}
           </div>
-          <p className="mt-1.5 text-[0.68rem] leading-snug text-cream-400/80">
-            Games already played still count. If someone has already won enough, the series ends
-            there.
-          </p>
+          {confirming !== null ? (
+            <p className="mt-1.5 text-[0.68rem] leading-snug text-brass-300">
+              ⚠ Best of {confirming} is first to {Math.floor(confirming / 2) + 1}, and{" "}
+              {shortenOutcome(series, confirming).winnerName ?? "someone"} already has that many —
+              so this ends the series now. Tap again to confirm.
+            </p>
+          ) : (
+            <p className="mt-1.5 text-[0.68rem] leading-snug text-cream-400/80">
+              Games already played still count. ⚠ marks a length that someone has already won.
+            </p>
+          )}
         </div>
       )}
     </div>

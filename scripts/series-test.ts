@@ -1,4 +1,7 @@
 import {
+  addPlayers,
+  joinedAt,
+  playedIn,
   auditSeries,
   createSeries,
   formatLabel,
@@ -14,6 +17,7 @@ import {
   seriesStandings,
   shortenSeries,
   shorterFormats,
+  shortenOutcome,
   winsRequired,
 } from "../lib/series/rules";
 import type { SeriesState } from "../lib/series/types";
@@ -343,6 +347,14 @@ console.log("\nShortening");
   check(ended.status === "completed" && ended.winnerId === "p0", "as a best of 5 it's already won");
   check(auditSeries(ended).length === 0, `audit clean — ${auditSeries(ended).join("; ")}`);
 
+  // The UI must be able to warn before it happens, not after.
+  const warn = shortenOutcome(t, 5);
+  check(warn.endsNow, "cutting 3-1 to a best of 5 is flagged as ending it");
+  check(warn.winnerName === "Hamza", `and names the winner (got ${warn.winnerName})`);
+  const safe = shortenOutcome(cut.series, 5);
+  check(!safe.endsNow && safe.winnerName === null, "a cut that keeps it running is not flagged");
+  check(!shortenOutcome(t, 9).endsNow, "an invalid cut is never flagged as ending it");
+
   // Refusals.
   check(!!shortenSeries(t, 9).error, "can't make it longer");
   check(!!shortenSeries(t, 7).error, "can't 'cut' it to the same length");
@@ -355,6 +367,56 @@ console.log("\nShortening");
   const before4 = t.games.map((g) => `${g.gameNumber}:${g.winnerId}`).join("|");
   const after4 = ended.games.map((g) => `${g.gameNumber}:${g.winnerId}`).join("|");
   check(before4 === after4, "game records are identical either side of the cut");
+  console.log(`  ${pass - before} passed`);
+}
+
+// -------------------------------------------------------------- latecomers
+console.log("\nJoining mid-series");
+{
+  const before = pass;
+
+  let s = series(7, ["Hamza", "Ahmed", "Ali"]);
+  s = recordGame(s, { gameId: "J1", order: ["p0", "p1", "p2"] }).series;
+  s = recordGame(s, { gameId: "J2", order: ["p1", "p0", "p2"] }).series;
+
+  const joined = addPlayers(s, [{ id: "p9", name: "Usman" }]);
+  check(!joined.error, `joining allowed — ${joined.error ?? ""}`);
+  s = joined.series;
+  const usman = s.players.find((p) => p.id === "p9")!;
+
+  check(s.players.length === 4, "four players now");
+  check(joinedAt(usman) === 3, `Usman joined at game 3 (got ${joinedAt(usman)})`);
+  check(usman.wins === 0, "and starts on nothing");
+  check(playedIn(s, usman) === 0, "he has played none of the games so far");
+  check(playedIn(s, s.players[0]) === 2, "the originals have played two");
+  check(s.players.every((p) => p.placings.length === 4), "everyone has a slot for 4th place");
+  check(auditSeries(s).length === 0, `audit clean after joining — ${auditSeries(s).join("; ")}`);
+
+  // The earlier games are untouched, and still valid at three players.
+  check(s.games[0].order.length === 3, "game 1 still has its three players");
+  check(s.gamesPlayed === 2 && s.games.length === 2, "no game was invented or lost");
+
+  // From here on he's placed like everyone else.
+  s = recordGame(s, { gameId: "J3", order: ["p9", "p0", "p1", "p2"] }).series;
+  check(s.players.find((p) => p.id === "p9")!.wins === 1, "Usman wins game 3");
+  check(playedIn(s, s.players.find((p) => p.id === "p9")!) === 1, "and has played one");
+  check(auditSeries(s).length === 0, `audit clean after his first game — ${auditSeries(s).join("; ")}`);
+
+  // Losses count from the games, so a table that changed size still adds up.
+  check(lossesOf(s, s.players.find((p) => p.id === "p2")!) === 3, "Ali came last in all three");
+  check(seriesLoser(s)?.name === "Ali", "and is the series loser");
+
+  // Refusals and no-ops.
+  check(addPlayers(s, [{ id: "p0", name: "Hamza" }]).series.players.length === 4, "already-in is a no-op");
+  const done = recordGame(
+    recordGame(
+      recordGame(s, { gameId: "J4", order: ["p0", "p1", "p2", "p9"] }).series,
+      { gameId: "J5", order: ["p0", "p1", "p2", "p9"] }
+    ).series,
+    { gameId: "J6", order: ["p0", "p1", "p2", "p9"] }
+  ).series;
+  check(done.status === "completed", "series finishes");
+  check(!!addPlayers(done, [{ id: "pX", name: "Late" }]).error, "can't join a finished series");
   console.log(`  ${pass - before} passed`);
 }
 

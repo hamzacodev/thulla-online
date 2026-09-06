@@ -2,7 +2,14 @@ import { supabaseAdmin } from "./supabaseAdmin";
 import { createGame, resolveTrick, standings } from "./engine/rules";
 import { writeResult, type HistoryPlayerInput } from "./recordResult";
 import { TRICK_LINGER_MS, type RoomState } from "./roomTypes";
-import { createSeries, isSeries, isValidBestOf, recordGame, shortenSeries } from "./series/rules";
+import {
+  addPlayers,
+  createSeries,
+  isSeries,
+  isValidBestOf,
+  recordGame,
+  shortenSeries,
+} from "./series/rules";
 import { shuffle } from "./engine/cards";
 import { thullaHoldMs } from "./thullaClips";
 
@@ -23,6 +30,17 @@ export function dealNewGame(state: RoomState, now = Date.now()): void {
       players: state.seats.map((seat) => ({ id: seat.id, name: seat.name })),
       now,
     });
+  } else if (state.series && state.series.status === "active") {
+    // Anyone who sat down between games joins the series now, at the deal —
+    // the one moment the table membership is settled. They start on nothing
+    // and are recorded as joining for this game, so the standings never
+    // imply they played the earlier ones.
+    const { series } = addPlayers(
+      state.series,
+      state.seats.map((seat) => ({ id: seat.id, name: seat.name })),
+      now
+    );
+    state.series = series;
   }
 
   // Shuffled, so the turn order changes between games of a series. The

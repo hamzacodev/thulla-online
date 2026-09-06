@@ -184,6 +184,25 @@ export function shortenProblem(series: SeriesState, bestOf: number): string | nu
 }
 
 /**
+ * What cutting to this length would actually do.
+ *
+ * Lowering the target can finish the series on the spot — best of 7 needs 4
+ * wins, best of 5 needs 3, so somebody on 3 has already done enough. That
+ * is correct by the rules and still a shock if it happens on one tap, so
+ * callers can ask first and say so.
+ */
+export function shortenOutcome(
+  series: SeriesState,
+  bestOf: number
+): { endsNow: boolean; winnerName: string | null } {
+  if (shortenProblem(series, bestOf)) return { endsNow: false, winnerName: null };
+  const target = winsRequired(bestOf);
+  const leader = seriesStandings(series)[0];
+  const endsNow = (!!leader && leader.wins >= target) || series.gamesPlayed >= bestOf;
+  return { endsNow, winnerName: endsNow ? leader?.name ?? null : null };
+}
+
+/**
  * Cuts a running series short.
  *
  * People misjudge how long they want to play, and a best of 7 at 11pm is a
@@ -282,15 +301,63 @@ export function gameLoserName(series: SeriesState, game: SeriesGame): string | n
   return series.players.find((p) => p.id === id)?.name ?? null;
 }
 
+/** Which game this player first appeared in. */
+export function joinedAt(player: SeriesPlayer): number {
+  return player.joinedAtGame ?? 1;
+}
+
+/** How many games this player was actually in. */
+export function playedIn(series: SeriesState, player: SeriesPlayer): number {
+  return Math.max(0, series.gamesPlayed - joinedAt(player) + 1);
+}
+
 /**
  * How many games this player finished last.
  *
- * Last place is `players.length - 1` — the placings array is one slot per
- * seat, so the final slot is the wooden spoon however many are playing.
+ * Counted from the games themselves rather than read out of `placings`,
+ * because the slot that means "last" moves when the table size changes: in
+ * a three-player game last is index 2, and after somebody joins it's index
+ * 3. Counting losers directly is right whatever the table did.
  */
 export function lossesOf(series: SeriesState, player: SeriesPlayer): number {
-  const last = series.players.length - 1;
-  return player.placings[last] ?? 0;
+  return series.games.reduce((n, g) => n + (gameLoserId(g) === player.id ? 1 : 0), 0);
+}
+
+/**
+ * Sits new players down in a running series.
+ *
+ * They start on nothing and are marked as joining for the next game, so the
+ * standings never imply they played the earlier ones. Everybody's existing
+ * results are untouched: joining late changes who is at the table from here
+ * on, not what already happened.
+ */
+export function addPlayers(
+  seriesIn: SeriesState,
+  incoming: Array<Pick<SeriesPlayer, "id" | "name">>,
+  now: number = Date.now()
+): SeriesResult {
+  if (seriesIn.status !== "active") {
+    return { series: seriesIn, error: "That series is already finished." };
+  }
+  const known = new Set(seriesIn.players.map((p) => p.id));
+  const fresh = incoming.filter((p) => !known.has(p.id));
+  if (fresh.length === 0) return { series: seriesIn };
+  if (new Set(fresh.map((p) => p.id)).size !== fresh.length) {
+    return { series: seriesIn, error: "A player can't join a series twice." };
+  }
+
+  const joinedAtGame = seriesIn.gamesPlayed + 1;
+  const size = seriesIn.players.length + fresh.length;
+  const players = [
+    ...seriesIn.players.map((p) => ({ ...p, placings: [...p.placings] })),
+    ...fresh.map((p) => ({ ...p, wins: 0, placings: new Array(size).fill(0), joinedAtGame })),
+  ];
+  // Everyone's tally needs a slot for the new last place.
+  players.forEach((p) => {
+    while (p.placings.length < size) p.placings.push(0);
+  });
+
+  return { series: { ...seriesIn, players, games: [...seriesIn.games], updatedAt: now } };
 }
 
 /**
@@ -381,14 +448,22 @@ export function auditSeries(series: SeriesState): string[] {
       problems.push(`${p.name}'s firsts (${p.placings[0] ?? 0}) don't match their wins (${p.wins})`);
     }
     const placed = p.placings.reduce((n, c) => n + c, 0);
-    if (placed !== series.gamesPlayed) {
-      problems.push(`${p.name} is placed in ${placed} games but ${series.gamesPlayed} were played`);
+    const expected = playedIn(series, p);
+    if (placed !== expected) {
+      problems.push(
+        `${p.name} is placed in ${placed} games but was at the table for ${expected}`
+      );
+    }
+    if (joinedAt(p) < 1 || joinedAt(p) > series.gamesPlayed + 1) {
+      problems.push(`${p.name} joined at game ${joinedAt(p)}, which never existed`);
     }
   }
   for (const g of series.games) {
     if (new Set(g.order).size !== g.order.length) problems.push(`game ${g.gameNumber} places a player twice`);
-    if (g.order.length !== series.players.length) {
-      problems.push(`game ${g.gameNumber} placed ${g.order.length} of ${series.players.length} players`);
+    // How many people were at the table *then*, not now.
+    const thereThen = series.players.filter((p) => joinedAt(p) <= g.gameNumber).length;
+    if (g.order.length !== thereThen) {
+      problems.push(`game ${g.gameNumber} placed ${g.order.length} of ${thereThen} players`);
     }
   }
 

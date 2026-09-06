@@ -21,6 +21,17 @@ export interface SeriesPlayer {
   name: string;
   wins: number;
   /**
+   * The game number they joined for. 1 for everyone who started the series;
+   * higher for anyone who sat down later.
+   *
+   * Optional so a series stored before latecomers existed still loads — a
+   * missing value means "was here from the start", which it was. Without
+   * this, a player who joined for game 4 looks like someone who played the
+   * first three and was never placed in them, and the audit rightly
+   * complains about it.
+   */
+  joinedAtGame?: number;
+  /**
    * How often they finished in each place: index 0 is firsts, 1 is seconds,
    * and so on. `wins` is placings[0], kept separately because it decides
    * the series and everything else is colour.
